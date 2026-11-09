@@ -39,6 +39,10 @@
 #include "backends/keymapper/keymapper.h"
 #include "backends/keymapper/standard-actions.h"
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten/em_asm.h>
+#endif
+
 namespace Kyra {
 
 const char *const LoLEngine::kMouseKeymapName = "lolmouse";
@@ -929,6 +933,91 @@ void LoLEngine::startupNew() {
 	_screen->showMouse();
 }
 
+// Version web (emscripten) : publie l'état du jeu pour la mini-carte de la page, sous la forme
+// de zones d'octets placées aux adresses physiques du jeu DOS (docs/retro-conception.md, § 12)
+// et rangées comme dans le jeu DOS (structures compactées, pointeurs sur 4 octets mis à 0).
+// La page répond avec ces zones sur le canal « lol-mem » comme l'émulateur DOSBox.
+// Format : (adresse u32, longueur u32, octets)…, petit-boutiste.
+void LoLEngine::webPublishState() {
+#ifdef __EMSCRIPTEN__
+	static uint32 lastTime = 0;
+	static Common::Array<byte> buf;
+	const uint32 now = _system->getMillis();
+	if (now - lastTime < 150)
+		return;
+	lastTime = now;
+	buf.clear();
+	uint32 start = 0;
+	auto u8 = [&](uint32 v) { buf.push_back(v & 0xFF); };
+	auto u16 = [&](uint32 v) { u8(v); u8(v >> 8); };
+	auto u32 = [&](uint32 v) { u16(v); u16(v >> 16); };
+	auto begin = [&](uint32 addr) { u32(addr); start = buf.size(); u32(0); };
+	auto end = [&]() { const uint32 n = buf.size() - start - 4; for (int i = 0; i < 4; i++) buf[start + i] = (n >> (8 * i)) & 0xFF; };
+
+	begin(0x3E4E0); u16(_currentBlock); end();
+	begin(0x3E4EF); u16(_currentDirection); end();
+	begin(0x5D6B5); u8(_specialSceneFlag ? 1 : 5); end();
+	begin(0x3E6F0); u16(_credits); end();
+	begin(0x3E558); u16(_itemInHand); end();
+	begin(0x3E4F6); for (int i = 0; i < 48; i++) u16(_inventory[i]); end();
+	begin(0x3E55C); for (int i = 0; i < 128; i++) u8(i < (int)sizeof(_flagsTable) ? _flagsTable[i] : 0); end();
+	begin(0x30270); for (int i = 0; i < 11; i++) u32(_expRequirements ? _expRequirements[i] : 0); end();
+
+	// grille : 1024 cases de 10 octets (murs N E S O, objets posés, objets à dessiner, direction, drapeaux)
+	begin(0x3E713);
+	for (int i = 0; i < 1024; i++) {
+		const LevelBlockProperty &b = _levelBlockProperties[i];
+		for (int k = 0; k < 4; k++) u8(b.walls[k]);
+		u16(b.assignedObjects); u16(b.drawObjects); u8(b.direction); u8(b.flags);
+	}
+	end();
+
+	// objets : 400 entrées de 16 octets (le type, itemPropertyIndex, est à +12)
+	begin(0x31F79 - 12);
+	for (int i = 0; i < 400; i++) {
+		const LoLItem &t = _itemsInPlay[i];
+		u16(t.nextAssignedObject); u16(t.nextDrawObject); u8(t.flyingHeight); u16(t.block); u16(t.x); u16(t.y);
+		u8(t.level); u16(t.itemPropertyIndex); u16(t.shpCurFrame_flg);
+	}
+	end();
+
+	// monstres : 30 entrées de 46 octets (le champ x, à +7, est en 0x31871 pour la première)
+	begin(0x31871 - 7);
+	for (int i = 0; i < 30; i++) {
+		const LoLMonster &m = _monsters[i];
+		u16(m.nextAssignedObject); u16(m.nextDrawObject); u8(m.flyingHeight); u16(m.block); u16(m.x); u16(m.y);
+		u8(m.destDirection); u8(m.shiftStep); u16(m.destX); u16(m.destY); u8(m.hitOffsX); u8(m.hitOffsY);
+		u8(m.currentSubFrame); u8(m.mode); u8(m.fightCurTick); u8(m.id); u8(m.direction); u8(m.facing);
+		u16(m.flags); u16(m.damageReceived); u16(m.hitPoints); u8(m.speedTick); u8(m.type); u32(0);
+		u8(m.numDistAttacks); u8(m.curDistWeapon); u8(m.distAttackTick); u16(m.assignedItems);
+		for (int k = 0; k < 4; k++) u8(m.equipmentShapes[k]);
+	}
+	end();
+
+	// groupe : 4 fiches de 130 octets (le nom, à +2, est en 0x3389F pour la première)
+	begin(0x3389F - 2);
+	for (int i = 0; i < 4; i++) {
+		const LoLCharacter &c = _characters[i];
+		u16(c.flags); for (int k = 0; k < 11; k++) u8(c.name[k]); u8(c.raceClassSex); u16(c.id);
+		u8(c.curFaceFrame); u8(c.tempFaceFrame); u8(c.screamSfx); u32(0);
+		for (int k = 0; k < 8; k++) u16(c.itemsMight[k]);
+		for (int k = 0; k < 8; k++) u16(c.protectionAgainstItems[k]);
+		u16(c.itemProtection); u16(c.hitPointsCur); u16(c.hitPointsMax); u16(c.magicPointsCur); u16(c.magicPointsMax);
+		u8(c.field_41); u16(c.damageSuffered); u16(c.weaponHit); u16(c.totalMightModifier); u16(c.totalProtectionModifier);
+		u16(c.might); u16(c.protection); u16(c.nextAnimUpdateCountdown);
+		for (int k = 0; k < 11; k++) u16(c.items[k]);
+		for (int k = 0; k < 3; k++) u8(c.skillLevels[k]);
+		for (int k = 0; k < 3; k++) u8(c.skillModifiers[k]);
+		for (int k = 0; k < 3; k++) u32(c.experiencePts[k]);
+		for (int k = 0; k < 5; k++) u8(c.characterUpdateEvents[k]);
+		for (int k = 0; k < 5; k++) u8(c.characterUpdateDelay[k]);
+	}
+	end();
+
+	EM_ASM({ if (Module.lolState) Module.lolState(HEAPU8.slice($0, $0 + $1)); }, buf.data(), buf.size());
+#endif
+}
+
 void LoLEngine::runLoop() {
 	// Initialize debugger since how it should be fully usable
 	static_cast<Debugger_LoL *>(getDebugger())->initialize();
@@ -957,6 +1046,7 @@ void LoLEngine::runLoop() {
 		gui_updateInput();
 
 		update();
+		webPublishState();
 
 		updatePlayTimer();
 

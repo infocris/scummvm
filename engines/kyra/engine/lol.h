@@ -315,6 +315,7 @@ private:
 
 	// main loop
 	void runLoop();
+	void webPublishState();	// version web : état du jeu aux adresses du jeu DOS, pour la mini-carte
 	void update() override;
 
 	// mouse
