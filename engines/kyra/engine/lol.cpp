@@ -943,7 +943,10 @@ void LoLEngine::webPublishState() {
 	static uint32 lastTime = 0;
 	static Common::Array<byte> buf;
 	const uint32 now = _system->getMillis();
-	if (now - lastTime < 150)
+	const bool changed = EM_ASM_INT({ return Module.lolCmds && Module.lolCmds.length ? 1 : 0; });
+	if (changed)
+		webRunCommands();
+	if (now - lastTime < 150 && !changed)
 		return;
 	lastTime = now;
 	buf.clear();
@@ -1016,6 +1019,105 @@ void LoLEngine::webPublishState() {
 
 	EM_ASM({ if (Module.lolState) Module.lolState(HEAPU8.slice($0, $0 + $1)); }, buf.data(), buf.size());
 #endif
+}
+
+// Version web : commandes d'inventaire de la page (Module.lolCmds : [op, a, b, id]…), exécutées
+// avec les fonctions du jeu (scripts des objets équipés, recalcul des caractéristiques, affichage).
+// Emplacements : 0..47 sac, 100 main, 200 + perso * 11 + emplacement d'équipement.
+// op 1 : déplacer a vers b (échange si b est occupé) ; op 2 : supprimer l'objet de a ;
+// op 3 : créer un objet de type a dans le sac. Résultat (Module.lolCmdDone(id, code)) :
+// 0 fait, 1 emplacement ou objet impossible, 2 sac plein, 3 emplacement vide.
+void LoLEngine::webRunCommands() {
+#ifdef __EMSCRIPTEN__
+	while (EM_ASM_INT({ return Module.lolCmds.length; })) {
+		const int op = EM_ASM_INT({ return Module.lolCmds[0][0]; });
+		const int a = EM_ASM_INT({ return Module.lolCmds[0][1]; });
+		const int b = EM_ASM_INT({ return Module.lolCmds[0][2]; });
+		const int id = EM_ASM_INT({ return Module.lolCmds.shift()[3]; });
+		const int res = webInventoryCommand(op, a, b);
+		EM_ASM({ if (Module.lolCmdDone) Module.lolCmdDone($0, $1); }, id, res);
+	}
+#endif
+}
+
+Item LoLEngine::webItemAt(int loc) {
+	if (loc >= 0 && loc < 48)
+		return _inventory[loc];
+	if (loc == 100)
+		return _itemInHand;
+	if (loc >= 200 && loc < 244)
+		return _characters[(loc - 200) / 11].items[(loc - 200) % 11];
+	return 0;
+}
+
+void LoLEngine::webSetItemAt(int loc, Item item) {
+	if (loc >= 0 && loc < 48) {
+		_inventory[loc] = item;
+	} else if (loc == 100) {
+		setHandItem(item);
+	} else if (loc >= 200 && loc < 244) {
+		const int c = (loc - 200) / 11, k = (loc - 200) % 11;
+		const Item old = _characters[c].items[k];
+		_characters[c].items[k] = item;
+		recalcCharacterStats(c);
+		if (old)
+			runItemScript(c, old, 0x100, 0, 0);	// retiré (comme clickedCharInventorySlot)
+		if (item)
+			runItemScript(c, item, 0x80, 0, 0);	// équipé
+		gui_drawCharPortraitWithStats(c);
+		if ((_updateFlags & 2) && c == _selectedCharacter) {
+			gui_drawCharInventoryItem(k);
+			gui_changeCharacterStats(c);
+		}
+	}
+}
+
+int LoLEngine::webInventoryCommand(int op, int a, int b) {
+	auto validLoc = [&](int loc) {
+		return (loc >= 0 && loc < 48) || loc == 100 || (loc >= 200 && loc < 244 && (_characters[(loc - 200) / 11].flags & 1));
+	};
+	auto fits = [&](int loc, Item item) {	// l'objet peut-il aller à cet emplacement ?
+		if (!item || loc < 200)
+			return true;
+		return (_itemProperties[_itemsInPlay[item].itemPropertyIndex].type & (1 << ((loc - 200) % 11))) != 0;
+	};
+
+	if (op == 3) {
+		if (a <= 0 || a >= _webNumItemProperties)
+			return 1;
+		const Item item = makeItem(a, 0, 0);
+		if (!item)
+			return 1;
+		if (!addItemToInventory(item)) {
+			deleteItem(item);
+			return 2;
+		}
+		gui_drawInventory();
+		return 0;
+	}
+	if (!validLoc(a))
+		return 1;
+	const Item ia = webItemAt(a);
+	if (!ia)
+		return 3;
+	if (op == 2) {
+		webSetItemAt(a, 0);
+		deleteItem(ia);
+		gui_drawInventory();
+		return 0;
+	}
+	if (op != 1 || !validLoc(b) || a == b)
+		return 1;
+	const Item ib = webItemAt(b);
+	if (!fits(b, ia) || !fits(a, ib))
+		return 1;
+	// retirer d'abord (scripts « retiré »), puis poser
+	webSetItemAt(a, 0);
+	webSetItemAt(b, 0);
+	webSetItemAt(b, ia);
+	webSetItemAt(a, ib);
+	gui_drawInventory();
+	return 0;
 }
 
 void LoLEngine::runLoop() {

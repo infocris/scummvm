@@ -235,6 +235,7 @@ int LoLEngine::olol_allocItemPropertiesBuffer(EMCState *script) {
 	debugC(3, kDebugLevelScriptFuncs, "LoLEngine::olol_allocItemPropertiesBuffer(%p) (%d)", (const void *)script, stackPos(0));
 	delete[] _itemProperties;
 	_itemProperties = new ItemProperty[stackPos(0)];
+	_webNumItemProperties = stackPos(0);
 	return 1;
 }
 
