@@ -946,6 +946,15 @@ void LoLEngine::webPublishState() {
 	const bool changed = EM_ASM_INT({ return Module.lolCmds && Module.lolCmds.length ? 1 : 0; });
 	if (changed)
 		webRunCommands();
+	for (int i = 0; i < 4; i++) {	// triches : remettre au maximum (ce qui a été perdu avant l'activation)
+		LoLCharacter &c = _characters[i];
+		if (!(c.flags & 1) || (c.flags & 8))
+			continue;
+		if (_webInfiniteHp && c.hitPointsCur < (int)c.hitPointsMax)
+			setCharacterMagicOrHitPoints(i, 0, c.hitPointsMax, 0);
+		if (_webInfiniteMp && c.magicPointsCur < (int)c.magicPointsMax)
+			setCharacterMagicOrHitPoints(i, 1, c.magicPointsMax, 0);
+	}
 	if (now - lastTime < 150 && !changed)
 		return;
 	lastTime = now;
@@ -1034,7 +1043,9 @@ void LoLEngine::webPublishState() {
 // avec les fonctions du jeu (scripts des objets équipés, recalcul des caractéristiques, affichage).
 // Emplacements : 0..47 sac, 100 main, 200 + perso * 11 + emplacement d'équipement.
 // op 1 : déplacer a vers b (échange si b est occupé) ; op 2 : supprimer l'objet de a ;
-// op 3 : créer un objet de type a dans le sac ; op 4 : aller au niveau a, case b. Résultat (Module.lolCmdDone(id, code)) :
+// op 3 : créer un objet de type a dans le sac ; op 4 : aller au niveau a, case b ;
+// op 5 : triches vie (a & 1) / magie (a & 2) infinies ; op 6 : ajouter a couronnes ;
+// op 7 / 8 (tests) : b points de dégâts / de magie dépensée au perso a. Résultat (Module.lolCmdDone(id, code)) :
 // 0 fait, 1 emplacement ou objet impossible, 2 sac plein, 3 emplacement vide.
 void LoLEngine::webRunCommands() {
 #ifdef __EMSCRIPTEN__
@@ -1091,6 +1102,26 @@ int LoLEngine::webInventoryCommand(int op, int a, int b) {
 		return (_itemProperties[_itemsInPlay[item].itemPropertyIndex].type & (1 << ((loc - 200) % 11))) != 0;
 	};
 
+	if (op == 5) {	// triches : a = 1 vie infinie, 2 magie infinie (masque)
+		_webInfiniteHp = (a & 1) != 0;
+		_webInfiniteMp = (a & 2) != 0;
+		return 0;
+	}
+	if (op == 7 || op == 8) {	// tests : dégâts d'un monstre (7) ou magie dépensée (8) : b points au perso a
+		if (a < 0 || a > 3 || b <= 0 || !(_characters[a].flags & 1))
+			return 1;
+		if (op == 7)
+			inflictDamage(a, b, 0x8000, 0, 0);
+		else
+			setCharacterMagicOrHitPoints(a, 1, -b, 1);
+		return 0;
+	}
+	if (op == 6) {	// ajouter a couronnes
+		if (a <= 0)
+			return 1;
+		giveCredits(a, 1);
+		return 0;
+	}
 	if (op == 4) {	// aller au niveau a, case b (comme olol_loadNewLevel)
 		if (a < 1 || a > 29 || b < 0 || b > 1023)
 			return 1;
@@ -1698,6 +1729,8 @@ void LoLEngine::setCharacterMagicOrHitPoints(int charNum, int type, int points, 
 
 	int newVal = (mode == 2) ? (pointsMax + points) : (mode ? (pointsCur + points) : points);
 	newVal = CLIP(newVal, 0, pointsMax);
+	if ((type ? _webInfiniteMp : _webInfiniteHp) && newVal < pointsCur)
+		newVal = pointsMax;	// version web : triche, aucune perte (dégâts, sorts)
 
 	if (type) {
 		c->magicPointsCur = newVal;

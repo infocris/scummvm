@@ -1079,6 +1079,7 @@ private:
 	ItemProperty *_itemProperties;
 	int _webNumItemProperties = 0;	// version web : taille de _itemProperties
 	char _webMonsterShapeFile[3][13] = {};	// version web : fichier de sprites chargé dans chaque emplacement
+	bool _webInfiniteHp = false, _webInfiniteMp = false;	// version web : triches vie / magie infinies
 
 	Item _itemInHand;
 	Item _inventory[48];
