@@ -986,20 +986,27 @@ void LoLEngine::webPublishState(bool mainLoop) {
 	begin(0x7F000100);
 	u8(_specialSceneFlag ? 1 : 0); u16(_updateFlags);
 	u16(_seqWindowX1); u16(_seqWindowY1); u16(_seqWindowX2); u16(_seqWindowY2);
-	u8(_webInMenu ? 1 : 0); u32(_webLoopCount); u8(_webLoadingLevel ? 1 : 0);
+	u8(_webInMenu ? 1 : 0); u32(_webLoopCount); u8(_webLoadingLevel ? 1 : 0); u8(_webCasting ? 1 : 0);
 	end();
-	// image de chaque monstre telle que le jeu la dessine vu du groupe (drawMonster) :
-	// numéro d'image (0-15, 255 = aucune), puis 1 = image retournée horizontalement
+	// image de chaque monstre telle que le jeu la dessine vu du groupe (drawMonster), 4 octets :
+	// numéro d'image (0-15, 255 = aucune) ; 1 = image retournée horizontalement ; giclée de coup
+	// reçu (image 6 de GAMESHP.SHP) : réduction 1-4 (0 = aucune) ; couleur 0-3 (drapeaux & 0xC000)
 	begin(0x7F000200);
 	for (int i = 0; i < 30; i++) {
 		LoLMonster *m = &_monsters[i];
-		int frm = -1, flip = 0;
+		int frm = -1, flip = 0, blood = 0, bloodType = 0;
 		if (m->properties && _monsterDirFlags && m->block) {
 			const int16 flg = _monsterDirFlags[(_currentDirection << 2) + (m->facing & 3)];
 			frm = getMonsterCurFrame(m, flg & 0xFFEF);
 			flip = (flg & 0x10) ? 1 : 0;
+			if (m->damageReceived && frm >= 0) {
+				const int dmg = m->damageReceived & 0x7FFF;
+				int amount = (m->mode == 13) ? (m->fightCurTick << 1) : (dmg ? m->properties->hitPoints / dmg : 4);
+				blood = CLIP(amount, 1, 4);
+				bloodType = (m->properties->flags & 0xC000) >> 14;
+			}
 		}
-		u8(frm < 0 || frm > 15 ? 255 : frm); u8(flip);
+		u8(frm < 0 || frm > 15 ? 255 : frm); u8(flip); u8(blood); u8(bloodType);
 	}
 	end();
 	begin(0x7F000000);
@@ -2373,6 +2380,11 @@ const KyraRpgGUISettings *LoLEngine::guiSettings() const {
 // spells
 
 int LoLEngine::castSpell(int charNum, int spellType, int spellLevel) {
+	struct WebCasting {	// version web : « sort en cours » pendant toute la fonction
+		bool &f;
+		WebCasting(bool &x) : f(x) { f = true; }
+		~WebCasting() { f = false; }
+	} webCasting(_webCasting);
 	_activeSpell.charNum = charNum;
 	_activeSpell.spell = spellType;
 	_activeSpell.p = &_spellProperties[spellType];
