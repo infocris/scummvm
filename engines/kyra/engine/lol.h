@@ -1081,6 +1081,7 @@ private:
 	char _webMonsterShapeFile[3][13] = {};	// version web : fichier de sprites chargé dans chaque emplacement
 	bool _webInfiniteHp = false, _webInfiniteMp = false;	// version web : triches vie / magie infinies
 	bool _webInMenu = false;	// version web : menu (disquette) ouvert
+	bool _webLoadingLevel = false;	// version web : changement de niveau, jusqu'au retour dans la boucle principale
 	uint32 _webLoopCount = 0;	// version web : tours de la boucle principale
 
 	Item _itemInHand;

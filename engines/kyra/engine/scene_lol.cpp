@@ -32,6 +32,7 @@
 namespace Kyra {
 
 void LoLEngine::loadLevel(int index) {
+	_webLoadingLevel = true;	// version web : effacé au prochain tour de la boucle principale
 	_flagsTable[73] |= 0x08;
 	setMouseCursorToIcon(0x85);
 	_nextScriptFunc = 0;

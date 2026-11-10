@@ -943,8 +943,10 @@ void LoLEngine::webPublishState(bool mainLoop) {
 	static uint32 lastTime = 0;
 	static Common::Array<byte> buf;
 	const uint32 now = _system->getMillis();
-	if (mainLoop)
+	if (mainLoop) {
 		_webLoopCount++;
+		_webLoadingLevel = false;
+	}
 	const bool changed = mainLoop && EM_ASM_INT({ return Module.lolCmds && Module.lolCmds.length ? 1 : 0; });
 	if (changed)
 		webRunCommands();
@@ -984,7 +986,7 @@ void LoLEngine::webPublishState(bool mainLoop) {
 	begin(0x7F000100);
 	u8(_specialSceneFlag ? 1 : 0); u16(_updateFlags);
 	u16(_seqWindowX1); u16(_seqWindowY1); u16(_seqWindowX2); u16(_seqWindowY2);
-	u8(_webInMenu ? 1 : 0); u32(_webLoopCount);
+	u8(_webInMenu ? 1 : 0); u32(_webLoopCount); u8(_webLoadingLevel ? 1 : 0);
 	end();
 	// image de chaque monstre telle que le jeu la dessine vu du groupe (drawMonster) :
 	// numéro d'image (0-15, 255 = aucune), puis 1 = image retournée horizontalement
