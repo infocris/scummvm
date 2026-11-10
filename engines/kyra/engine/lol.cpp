@@ -938,15 +938,17 @@ void LoLEngine::startupNew() {
 // et rangées comme dans le jeu DOS (structures compactées, pointeurs sur 4 octets mis à 0).
 // La page répond avec ces zones sur le canal « lol-mem » comme l'émulateur DOSBox.
 // Format : (adresse u32, longueur u32, octets)…, petit-boutiste.
-void LoLEngine::webPublishState() {
+void LoLEngine::webPublishState(bool mainLoop) {
 #ifdef __EMSCRIPTEN__
 	static uint32 lastTime = 0;
 	static Common::Array<byte> buf;
 	const uint32 now = _system->getMillis();
-	const bool changed = EM_ASM_INT({ return Module.lolCmds && Module.lolCmds.length ? 1 : 0; });
+	if (mainLoop)
+		_webLoopCount++;
+	const bool changed = mainLoop && EM_ASM_INT({ return Module.lolCmds && Module.lolCmds.length ? 1 : 0; });
 	if (changed)
 		webRunCommands();
-	for (int i = 0; i < 4; i++) {	// triches : remettre au maximum (ce qui a été perdu avant l'activation)
+	for (int i = 0; i < 4 && mainLoop; i++) {	// triches : remettre au maximum (ce qui a été perdu avant l'activation)
 		LoLCharacter &c = _characters[i];
 		if (!(c.flags & 1) || (c.flags & 8))
 			continue;
@@ -955,7 +957,7 @@ void LoLEngine::webPublishState() {
 		if (_webInfiniteMp && c.magicPointsCur < (int)c.magicPointsMax)
 			setCharacterMagicOrHitPoints(i, 1, c.magicPointsMax, 0);
 	}
-	if (now - lastTime < 150 && !changed)
+	if (now - lastTime < (mainLoop ? 150u : 100u) && !changed)
 		return;
 	lastTime = now;
 	buf.clear();
@@ -976,6 +978,28 @@ void LoLEngine::webPublishState() {
 	begin(0x30270); for (int i = 0; i < 11; i++) u32(_expRequirements ? _expRequirements[i] : 0); end();
 	// sprites des monstres (zone propre à la version web, hors de la mémoire DOS) : pour chacun des
 	// 5 types de monstres, nom (13 octets) du fichier chargé dans son emplacement (shapeIndex)
+	// affichage (zone propre à la version web) : scène spéciale, _updateFlags, fenêtre de séquence
+	// (x1, y1, x2, y2), menu ouvert, tours de la boucle principale (s'arrêtent pendant dialogues,
+	// séquences et cinématiques, qui ont leurs propres boucles)
+	begin(0x7F000100);
+	u8(_specialSceneFlag ? 1 : 0); u16(_updateFlags);
+	u16(_seqWindowX1); u16(_seqWindowY1); u16(_seqWindowX2); u16(_seqWindowY2);
+	u8(_webInMenu ? 1 : 0); u32(_webLoopCount);
+	end();
+	// image de chaque monstre telle que le jeu la dessine vu du groupe (drawMonster) :
+	// numéro d'image (0-15, 255 = aucune), puis 1 = image retournée horizontalement
+	begin(0x7F000200);
+	for (int i = 0; i < 30; i++) {
+		LoLMonster *m = &_monsters[i];
+		int frm = -1, flip = 0;
+		if (m->properties && _monsterDirFlags && m->block) {
+			const int16 flg = _monsterDirFlags[(_currentDirection << 2) + (m->facing & 3)];
+			frm = getMonsterCurFrame(m, flg & 0xFFEF);
+			flip = (flg & 0x10) ? 1 : 0;
+		}
+		u8(frm < 0 || frm > 15 ? 255 : frm); u8(flip);
+	}
+	end();
 	begin(0x7F000000);
 	for (int t = 0; t < 5; t++) {
 		const int slot = _monsterProperties ? _monsterProperties[t].shapeIndex : -1;
@@ -1208,7 +1232,7 @@ void LoLEngine::runLoop() {
 		gui_updateInput();
 
 		update();
-		webPublishState();
+		webPublishState(true);
 
 		updatePlayTimer();
 
@@ -2328,6 +2352,7 @@ uint16 *LoLEngine::getCharacterOrMonsterProtectionAgainstItems(int id) {
 
 void LoLEngine::delay(uint32 millis, bool doUpdate, bool) {
 	while (millis && !shouldQuit()) {
+		webPublishState(false);	// version web : état publié aussi pendant dialogues, séquences, menu
 		if (doUpdate)
 			update();
 		else

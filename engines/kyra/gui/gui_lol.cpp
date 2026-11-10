@@ -1543,7 +1543,11 @@ int LoLEngine::clickedOptions(Button *button) {
 	if (_flags.isTalkie && getVolume(kVolumeSpeech) == 2)
 		_configVoice |= (textEnabled() ? 2 : 1);
 
+	_webInMenu = true;			// version web : musique et sons en pause pendant le menu
+	_mixer->pauseAll(true);
 	_gui->runMenu(_gui->_mainMenu);
+	_mixer->pauseAll(false);
+	_webInMenu = false;
 
 	_updateFlags &= 0xFFFB;
 	setMouseCursorToItemInHand();

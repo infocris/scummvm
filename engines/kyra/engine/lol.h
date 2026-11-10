@@ -315,7 +315,7 @@ private:
 
 	// main loop
 	void runLoop();
-	void webPublishState();	// version web : état du jeu aux adresses du jeu DOS, pour la mini-carte
+	void webPublishState(bool mainLoop = true);	// version web : état du jeu aux adresses du jeu DOS, pour la mini-carte
 	void webRunCommands();	// version web : commandes d'inventaire envoyées par la page
 	int webInventoryCommand(int op, int a, int b);
 	Item webItemAt(int loc);
@@ -1080,6 +1080,8 @@ private:
 	int _webNumItemProperties = 0;	// version web : taille de _itemProperties
 	char _webMonsterShapeFile[3][13] = {};	// version web : fichier de sprites chargé dans chaque emplacement
 	bool _webInfiniteHp = false, _webInfiniteMp = false;	// version web : triches vie / magie infinies
+	bool _webInMenu = false;	// version web : menu (disquette) ouvert
+	uint32 _webLoopCount = 0;	// version web : tours de la boucle principale
 
 	Item _itemInHand;
 	Item _inventory[48];
