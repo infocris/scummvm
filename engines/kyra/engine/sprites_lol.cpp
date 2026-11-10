@@ -29,6 +29,12 @@ namespace Kyra {
 void LoLEngine::loadMonsterShapes(const char *file, int monsterIndex, int animType) {
 	releaseMonsterShapes(monsterIndex);
 	_screen->loadBitmap(file, 3, 3, 0);
+	if (monsterIndex >= 0 && monsterIndex < 3) {	// version web : nom sans extension, pour la mini-carte
+		Common::strlcpy(_webMonsterShapeFile[monsterIndex], file, 13);
+		char *dot = strchr(_webMonsterShapeFile[monsterIndex], '.');
+		if (dot)
+			*dot = 0;
+	}
 
 	const uint8 *p = _screen->getCPagePtr(2);
 	const uint8 *ts[16];

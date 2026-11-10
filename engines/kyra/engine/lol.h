@@ -1078,6 +1078,7 @@ private:
 	LoLItem *_itemsInPlay;
 	ItemProperty *_itemProperties;
 	int _webNumItemProperties = 0;	// version web : taille de _itemProperties
+	char _webMonsterShapeFile[3][13] = {};	// version web : fichier de sprites chargé dans chaque emplacement
 
 	Item _itemInHand;
 	Item _inventory[48];

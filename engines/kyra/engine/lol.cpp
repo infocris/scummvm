@@ -965,6 +965,15 @@ void LoLEngine::webPublishState() {
 	begin(0x3E4F6); for (int i = 0; i < 48; i++) u16(_inventory[i]); end();
 	begin(0x3E55C); for (int i = 0; i < 128; i++) u8(i < (int)sizeof(_flagsTable) ? _flagsTable[i] : 0); end();
 	begin(0x30270); for (int i = 0; i < 11; i++) u32(_expRequirements ? _expRequirements[i] : 0); end();
+	// sprites des monstres (zone propre à la version web, hors de la mémoire DOS) : pour chacun des
+	// 5 types de monstres, nom (13 octets) du fichier chargé dans son emplacement (shapeIndex)
+	begin(0x7F000000);
+	for (int t = 0; t < 5; t++) {
+		const int slot = _monsterProperties ? _monsterProperties[t].shapeIndex : -1;
+		const char *n = (slot >= 0 && slot < 3) ? _webMonsterShapeFile[slot] : "";
+		for (int k = 0; k < 13; k++) u8(k < (int)strlen(n) ? (uint8)n[k] : 0);
+	}
+	end();
 
 	// grille : 1024 cases de 10 octets (murs N E S O, objets posés, objets à dessiner, direction, drapeaux)
 	begin(0x3E713);
@@ -1025,7 +1034,7 @@ void LoLEngine::webPublishState() {
 // avec les fonctions du jeu (scripts des objets équipés, recalcul des caractéristiques, affichage).
 // Emplacements : 0..47 sac, 100 main, 200 + perso * 11 + emplacement d'équipement.
 // op 1 : déplacer a vers b (échange si b est occupé) ; op 2 : supprimer l'objet de a ;
-// op 3 : créer un objet de type a dans le sac. Résultat (Module.lolCmdDone(id, code)) :
+// op 3 : créer un objet de type a dans le sac ; op 4 : aller au niveau a, case b. Résultat (Module.lolCmdDone(id, code)) :
 // 0 fait, 1 emplacement ou objet impossible, 2 sac plein, 3 emplacement vide.
 void LoLEngine::webRunCommands() {
 #ifdef __EMSCRIPTEN__
@@ -1082,6 +1091,26 @@ int LoLEngine::webInventoryCommand(int op, int a, int b) {
 		return (_itemProperties[_itemsInPlay[item].itemPropertyIndex].type & (1 << ((loc - 200) % 11))) != 0;
 	};
 
+	if (op == 4) {	// aller au niveau a, case b (comme olol_loadNewLevel)
+		if (a < 1 || a > 29 || b < 0 || b > 1023)
+			return 1;
+		_screen->fadeClearSceneWindow(10);
+		_screen->fillRect(112, 0, 288, 120, 0);
+		disableSysTimer(2);
+		for (int i = 0; i < 8; i++) {
+			if (!_flyingObjects[i].enable || _flyingObjects[i].objectType)
+				continue;
+			endObjectFlight(&_flyingObjects[i], _flyingObjects[i].x, _flyingObjects[i].y, 1);
+		}
+		completeDoorOperations();
+		generateTempData();
+		_currentBlock = b;
+		_currentDirection = 0;
+		calcCoordinates(_partyPosX, _partyPosY, _currentBlock, 0x80, 0x80);
+		loadLevel(a);
+		enableSysTimer(2);
+		return 0;
+	}
 	if (op == 3) {
 		if (a <= 0 || a >= _webNumItemProperties)
 			return 1;
