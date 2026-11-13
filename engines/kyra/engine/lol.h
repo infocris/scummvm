@@ -1083,7 +1083,9 @@ private:
 	bool _webAutoAttack = false;	// version web : attaque automatique du monstre devant le groupe
 	uint32 _webAutoAttackTime = 0;
 	Common::Array<byte> _webSaveList;
-	int webSetCharacter(int slot, int id);	// version web : choisir le personnage d'une place du groupe	// version web : sauvegardes listées (n° u16, nom 40 octets)
+	int webSetCharacter(int slot, int id);
+	int webCastSpell(int charNum, int spell, int level, int target);	// version web : comme le menu de magie d'un portrait
+	uint8 _webAutoSpell[4] = { 0xFF, 0xFF, 0xFF, 0xFF };	// attaque auto : sort de chaque personnage (0xFF = arme)	// version web : choisir le personnage d'une place du groupe	// version web : sauvegardes listées (n° u16, nom 40 octets)
 	bool _webInMenu = false;	// version web : menu (disquette) ouvert
 	bool _webCasting = false;	// version web : sort en cours (animation dans la fenêtre de scène)
 	bool _webLoadingLevel = false;	// version web : changement de niveau, jusqu'au retour dans la boucle principale

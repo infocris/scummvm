@@ -954,10 +954,40 @@ void LoLEngine::webPublishState(bool mainLoop) {
 	// attaque automatique : chaque personnage prêt frappe le monstre le plus proche de la case
 	// devant le groupe, comme un clic sur son arme (clickedAttackButton). Monstres paisibles
 	// (mode 1, ex. gardes de Gladstone) et mourants (mode >= 13) épargnés.
+	// Personnage réglé sur un sort (_webAutoSpell) : sort lancé au plus haut niveau que sa magie et
+	// sa vie permettent, sur un monstre hostile jusqu'à 3 cases devant (getSpellTargetBlock) ;
+	// pas assez de magie : arme.
 	if (mainLoop && _webAutoAttack && !(_updateFlags & 0x0F) && !_weaponsDisabled && _activeMagicMenu == -1 && now - _webAutoAttackTime >= 200) {
 		_webAutoAttackTime = now;
+		auto hostileAt = [&](uint16 block) {
+			if (block > 1023)
+				return false;
+			int o = _levelBlockProperties[block].assignedObjects;
+			while (o & 0x8000) {
+				const LoLMonster *m = &_monsters[o & 0x7FFF];
+				if (m->mode < 13 && m->mode != 1)
+					return true;
+				o = m->nextAssignedObject;
+			}
+			return false;
+		};
 		for (int i = 0; i < 4; i++) {
 			if (!(_characters[i].flags & 1) || (_characters[i].flags & 0x314C))
+				continue;
+			const int sp = _webAutoSpell[i];
+			if (sp != 0xFF && _spellProperties) {
+				uint16 tb = 0xFFFF;
+				getSpellTargetBlock(_currentBlock, _currentDirection, 3, tb);
+				if (tb != 0xFFFF && hostileAt(tb)) {
+					int lvl = -1;
+					for (int l = 3; l >= 0 && lvl < 0; l--)
+						if (_spellProperties[sp].mpRequired[l] <= _characters[i].magicPointsCur && _spellProperties[sp].hpRequired[l] < _characters[i].hitPointsCur)
+							lvl = l;
+					if (lvl >= 0 && webCastSpell(i, sp, lvl, -1) == 0)
+						continue;
+				}
+			}
+			if (_characters[i].flags & 0x314C)
 				continue;
 			const uint16 t = getNearestMonsterFromCharacter(i);
 			if (t == 0xFFFF || !(t & 0x8000) || _monsters[t & 0x7FFF].mode == 1)
@@ -1345,34 +1375,12 @@ int LoLEngine::webInventoryCommand(int op, int a, int b) {
 		}
 		return 0;
 	}
-	if (op == 9) {	// lancer un sort : a = lanceur, b = type | niveau (0-3) << 8 | (cible + 1) << 12
-		// comme clickedMagicSubmenu (menu de magie du portrait), sans passer par ce menu
-		const int spell = b & 0xFF, level = (b >> 8) & 0xF, target = ((b >> 12) & 0xF) - 1;
-		if (a < 0 || a > 3 || level > 3 || !(_characters[a].flags & 1) || (_characters[a].flags & 0x314C) || _activeMagicMenu != -1)
+	if (op == 9)	// lancer un sort : a = lanceur, b = type | niveau (0-3) << 8 | (cible + 1) << 12
+		return webCastSpell(a, b & 0xFF, (b >> 8) & 0xF, ((b >> 12) & 0xF) - 1);
+	if (op == 19) {	// attaque auto du personnage a : sort b (0-6, lancé au plus haut niveau possible), sinon arme
+		if (a < 0 || a > 3)
 			return 1;
-		bool known = false;
-		for (int i = 0; i < 7; i++)
-			known |= _availableSpells[i] == spell;
-		if (!known || spell < 0 || spell >= (int)_spellProcs.size())
-			return 1;
-		if (checkMagic(a, spell, level))
-			return 4;	// pas assez de magie ou de vie (le jeu l'affiche)
-		_characters[a].flags |= 4;
-		if (!castSpell(a, spell, level)) {
-			_characters[a].flags &= 0xFFFB;
-			gui_drawCharPortraitWithStats(a);
-			return 5;
-		}
-		setCharacterUpdateEvent(a, 1, 8, 1);
-		increaseExperience(a, 2, level * level);
-		// soin d'un seul personnage : le jeu attend un clic sur un portrait ; cible donnée par la page
-		if (target >= 0 && target < 4 && (_characters[target].flags & 1) && (_spellProperties[spell].flags & 0xFF) == 1
-		    && _activeSpell.spell == spell && level < 3) {
-			_txt->printMessage(0, "%s.\r", _characters[target].name);
-			_activeSpell.target = target;
-			castHealOnSingleCharacter(&_activeSpell);
-			gui_enableDefaultPlayfieldButtons();
-		}
+		_webAutoSpell[a] = (b >= 0 && b <= 6) ? b : 0xFF;
 		return 0;
 	}
 	if (op == 6) {	// ajouter a couronnes
@@ -1746,6 +1754,37 @@ int LoLEngine::webSetCharacter(int slot, int id) {
 	calcCharPortraitXpos();
 	gui_enableDefaultPlayfieldButtons();
 	gui_drawPlayField();
+	return 0;
+}
+
+// Version web : lancer un sort comme clickedMagicSubmenu (menu de magie du portrait), sans ce menu.
+// Codes : 0 lancé, 1 impossible, 4 pas assez de magie / vie (le jeu l'affiche), 5 sort impossible ici.
+int LoLEngine::webCastSpell(int a, int spell, int level, int target) {
+	if (a < 0 || a > 3 || level < 0 || level > 3 || !(_characters[a].flags & 1) || (_characters[a].flags & 0x314C) || _activeMagicMenu != -1)
+		return 1;
+	bool known = false;
+	for (int i = 0; i < 7; i++)
+		known |= _availableSpells[i] == spell;
+	if (!known || spell < 0 || spell >= (int)_spellProcs.size())
+		return 1;
+	if (checkMagic(a, spell, level))
+		return 4;
+	_characters[a].flags |= 4;
+	if (!castSpell(a, spell, level)) {
+		_characters[a].flags &= 0xFFFB;
+		gui_drawCharPortraitWithStats(a);
+		return 5;
+	}
+	setCharacterUpdateEvent(a, 1, 8, 1);
+	increaseExperience(a, 2, level * level);
+	// soin d'un seul personnage : le jeu attend un clic sur un portrait ; cible donnée par la page
+	if (target >= 0 && target < 4 && (_characters[target].flags & 1) && (_spellProperties[spell].flags & 0xFF) == 1
+	    && _activeSpell.spell == spell && level < 3) {
+		_txt->printMessage(0, "%s.\r", _characters[target].name);
+		_activeSpell.target = target;
+		castHealOnSingleCharacter(&_activeSpell);
+		gui_enableDefaultPlayfieldButtons();
+	}
 	return 0;
 }
 
