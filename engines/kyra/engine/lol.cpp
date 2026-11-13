@@ -1204,6 +1204,24 @@ int LoLEngine::webInventoryCommand(int op, int a, int b) {
 		gui_drawCharPortraitWithStats(a);
 		return 0;
 	}
+	if (op == 13) {	// téléportation dans le niveau : case a, direction b (0-3, sinon inchangée)
+		// comme olol_setGlobalVar(0) des scripts (téléporteurs), puis la scène est redessinée
+		if (a < 0 || a > 1023 || (_updateFlags & 0x0F) || _weaponsDisabled || _activeMagicMenu != -1)
+			return 1;
+		for (int i = 0; i < 4; i++)	// case pleine (mur sur ses quatre faces) : refusée
+			if (!(_wllWallFlags[_levelBlockProperties[a].walls[i]] & 7))
+				break;
+			else if (i == 3)
+				return 1;
+		completeDoorOperations();
+		_currentBlock = a;
+		if (b >= 0 && b < 4)
+			_currentDirection = b;
+		calcCoordinates(_partyPosX, _partyPosY, _currentBlock, 0x80, 0x80);
+		updateAutoMap(_currentBlock);
+		gui_drawScene(0);
+		return 0;
+	}
 	if (op == 12) {	// volume a (0 musique, 1 effets, 2 voix) à b (2 = coupé … 102), comme le menu « Contrôles audio »
 		if (a < 0 || a > 2 || b < 2 || b > 102)
 			return 1;
