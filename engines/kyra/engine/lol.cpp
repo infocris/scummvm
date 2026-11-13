@@ -1009,6 +1009,18 @@ void LoLEngine::webPublishState(bool mainLoop) {
 		u8(frm < 0 || frm > 15 ? 255 : frm); u8(flip); u8(blood); u8(bloodType);
 	}
 	end();
+	// sorts connus du groupe (version web) : 7 entrées de 48 octets
+	// type (i8, -1 = aucun), 0, magie requise u16 × 4 niveaux, vie requise u16 × 4, nom (30 octets, CP850)
+	begin(0x7F000300);
+	for (int i = 0; i < 7; i++) {
+		const int t = _availableSpells[i];
+		u8(t < 0 ? 0xFF : t); u8(0);
+		for (int l = 0; l < 4; l++) u16(t < 0 ? 0 : _spellProperties[t].mpRequired[l]);
+		for (int l = 0; l < 4; l++) u16(t < 0 ? 0 : _spellProperties[t].hpRequired[l]);
+		const char *n = t < 0 ? "" : getLangString(_spellProperties[t].spellNameCode);
+		for (int k = 0; k < 30; k++) u8(n && k < (int)strlen(n) ? (uint8)n[k] : 0);
+	}
+	end();
 	begin(0x7F000000);
 	for (int t = 0; t < 5; t++) {
 		const int slot = _monsterProperties ? _monsterProperties[t].shapeIndex : -1;
@@ -1147,6 +1159,48 @@ int LoLEngine::webInventoryCommand(int op, int a, int b) {
 			inflictDamage(a, b, 0x8000, 0, 0);
 		else
 			setCharacterMagicOrHitPoints(a, 1, -b, 1);
+		return 0;
+	}
+	if (op == 10) {	// triche : monter d'un niveau le personnage a dans la compétence b (0 combat, 1 adresse, 2 magie)
+		// l'expérience manquante passe par increaseExperience : gains de vie / magie et message du jeu
+		if (a < 0 || a > 3 || b < 0 || b > 2 || !(_characters[a].flags & 1) || (_characters[a].flags & 8))
+			return 1;
+		LoLCharacter &c = _characters[a];
+		if (c.skillLevels[b] >= 10)
+			return 1;
+		const int32 need = _expRequirements[c.skillLevels[b]];
+		increaseExperience(a, b, need > c.experiencePts[b] ? need - c.experiencePts[b] : 0);
+		gui_drawCharPortraitWithStats(a);
+		return 0;
+	}
+	if (op == 9) {	// lancer un sort : a = lanceur, b = type | niveau (0-3) << 8 | (cible + 1) << 12
+		// comme clickedMagicSubmenu (menu de magie du portrait), sans passer par ce menu
+		const int spell = b & 0xFF, level = (b >> 8) & 0xF, target = ((b >> 12) & 0xF) - 1;
+		if (a < 0 || a > 3 || level > 3 || !(_characters[a].flags & 1) || (_characters[a].flags & 0x314C) || _activeMagicMenu != -1)
+			return 1;
+		bool known = false;
+		for (int i = 0; i < 7; i++)
+			known |= _availableSpells[i] == spell;
+		if (!known || spell < 0 || spell >= (int)_spellProcs.size())
+			return 1;
+		if (checkMagic(a, spell, level))
+			return 4;	// pas assez de magie ou de vie (le jeu l'affiche)
+		_characters[a].flags |= 4;
+		if (!castSpell(a, spell, level)) {
+			_characters[a].flags &= 0xFFFB;
+			gui_drawCharPortraitWithStats(a);
+			return 5;
+		}
+		setCharacterUpdateEvent(a, 1, 8, 1);
+		increaseExperience(a, 2, level * level);
+		// soin d'un seul personnage : le jeu attend un clic sur un portrait ; cible donnée par la page
+		if (target >= 0 && target < 4 && (_characters[target].flags & 1) && (_spellProperties[spell].flags & 0xFF) == 1
+		    && _activeSpell.spell == spell && level < 3) {
+			_txt->printMessage(0, "%s.\r", _characters[target].name);
+			_activeSpell.target = target;
+			castHealOnSingleCharacter(&_activeSpell);
+			gui_enableDefaultPlayfieldButtons();
+		}
 		return 0;
 	}
 	if (op == 6) {	// ajouter a couronnes
