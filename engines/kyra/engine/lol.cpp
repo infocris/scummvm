@@ -1224,6 +1224,17 @@ int LoLEngine::webInventoryCommand(int op, int a, int b) {
 		gui_drawCharPortraitWithStats(a);
 		return 0;
 	}
+	if (op == 18) {	// débloquer l'atlas (0x10, carte automatique) et / ou la boussole (0x40) : drapeaux de _flagsTable[31]
+		// comme les scripts de l'histoire (drapeaux 252 et 254) ; le terrain de jeu est redessiné (livre, boussole)
+		if (!(a & 0x50) || (_updateFlags & 0x0F))
+			return 1;
+		_flagsTable[31] |= (a & 0x50);
+		if (a & 0x10)
+			updateAutoMap(_currentBlock);
+		gui_drawPlayField();
+		setPaletteBrightness(_screen->getPalette(0), _brightness, _lampEffect);
+		return 0;
+	}
 	if (op == 17)	// place a du groupe (1 ou 2) : personnage b de la table (0 = place vidée)
 		return webSetCharacter(a, b);
 	if (op == 16) {	// sauvegarder dans l'emplacement a (-1 : premier libre), nom = texte UTF-8 de la commande
