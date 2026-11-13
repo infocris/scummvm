@@ -1224,11 +1224,11 @@ int LoLEngine::webInventoryCommand(int op, int a, int b) {
 		gui_drawCharPortraitWithStats(a);
 		return 0;
 	}
-	if (op == 18) {	// débloquer l'atlas (0x10, carte automatique) et / ou la boussole (0x40) : drapeaux de _flagsTable[31]
+	if (op == 18) {	// débloquer l'atlas (0x10, carte automatique), le livre de sorts (0x20, parchemin) et / ou la boussole (0x40) : drapeaux de _flagsTable[31]
 		// comme les scripts de l'histoire (drapeaux 252 et 254) ; le terrain de jeu est redessiné (livre, boussole)
-		if (!(a & 0x50) || (_updateFlags & 0x0F))
+		if (!(a & 0x70) || (_updateFlags & 0x0F))
 			return 1;
-		_flagsTable[31] |= (a & 0x50);
+		_flagsTable[31] |= (a & 0x70);
 		if (a & 0x10)
 			updateAutoMap(_currentBlock);
 		gui_drawPlayField();
