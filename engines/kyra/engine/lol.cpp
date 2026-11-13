@@ -950,6 +950,22 @@ void LoLEngine::webPublishState(bool mainLoop) {
 	const bool changed = mainLoop && EM_ASM_INT({ return Module.lolCmds && Module.lolCmds.length ? 1 : 0; });
 	if (changed)
 		webRunCommands();
+	// attaque automatique : chaque personnage prêt frappe le monstre le plus proche de la case
+	// devant le groupe, comme un clic sur son arme (clickedAttackButton). Monstres paisibles
+	// (mode 1, ex. gardes de Gladstone) et mourants (mode >= 13) épargnés.
+	if (mainLoop && _webAutoAttack && !(_updateFlags & 0x0F) && !_weaponsDisabled && _activeMagicMenu == -1 && now - _webAutoAttackTime >= 200) {
+		_webAutoAttackTime = now;
+		for (int i = 0; i < 4; i++) {
+			if (!(_characters[i].flags & 1) || (_characters[i].flags & 0x314C))
+				continue;
+			const uint16 t = getNearestMonsterFromCharacter(i);
+			if (t == 0xFFFF || !(t & 0x8000) || _monsters[t & 0x7FFF].mode == 1)
+				continue;
+			Button b;
+			b.arg = i;
+			clickedAttackButton(&b);
+		}
+	}
 	for (int i = 0; i < 4 && mainLoop; i++) {	// triches : remettre au maximum (ce qui a été perdu avant l'activation)
 		LoLCharacter &c = _characters[i];
 		if (!(c.flags & 1) || (c.flags & 8))
@@ -1160,6 +1176,7 @@ int LoLEngine::webInventoryCommand(int op, int a, int b) {
 	if (op == 5) {	// triches : a = 1 vie infinie, 2 magie infinie (masque)
 		_webInfiniteHp = (a & 1) != 0;
 		_webInfiniteMp = (a & 2) != 0;
+		_webAutoAttack = (a & 4) != 0;
 		return 0;
 	}
 	if (op == 7 || op == 8) {	// tests : dégâts d'un monstre (7) ou magie dépensée (8) : b points au perso a

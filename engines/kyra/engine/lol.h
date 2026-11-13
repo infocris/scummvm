@@ -1080,6 +1080,8 @@ private:
 	int _webNumItemProperties = 0;	// version web : taille de _itemProperties
 	char _webMonsterShapeFile[3][13] = {};	// version web : fichier de sprites chargé dans chaque emplacement
 	bool _webInfiniteHp = false, _webInfiniteMp = false;	// version web : triches vie / magie infinies
+	bool _webAutoAttack = false;	// version web : attaque automatique du monstre devant le groupe
+	uint32 _webAutoAttackTime = 0;
 	bool _webInMenu = false;	// version web : menu (disquette) ouvert
 	bool _webCasting = false;	// version web : sort en cours (animation dans la fenêtre de scène)
 	bool _webLoadingLevel = false;	// version web : changement de niveau, jusqu'au retour dans la boucle principale
