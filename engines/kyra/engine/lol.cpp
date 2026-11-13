@@ -1134,6 +1134,7 @@ void LoLEngine::webRunCommands() {
 		const int op = EM_ASM_INT({ return Module.lolCmds[0][0]; });
 		const int a = EM_ASM_INT({ return Module.lolCmds[0][1]; });
 		const int b = EM_ASM_INT({ return Module.lolCmds[0][2]; });
+		EM_ASM({ Module.lolText = Module.lolCmds[0][4] || null; });
 		const int id = EM_ASM_INT({ return Module.lolCmds.shift()[3]; });
 		const int res = webInventoryCommand(op, a, b);
 		EM_ASM({ if (Module.lolCmdDone) Module.lolCmdDone($0, $1); }, id, res);
@@ -1208,6 +1209,31 @@ int LoLEngine::webInventoryCommand(int op, int a, int b) {
 		const int32 need = _expRequirements[c.skillLevels[b]];
 		increaseExperience(a, b, need > c.experiencePts[b] ? need - c.experiencePts[b] : 0);
 		gui_drawCharPortraitWithStats(a);
+		return 0;
+	}
+	if (op == 16) {	// sauvegarder dans l'emplacement a (-1 : premier libre), nom = texte UTF-8 de la commande
+		// comme le menu « Sauvegarder » du jeu (clickedSavenameMenu) ; miniature générée par le moteur
+		Common::String desc;
+		const int len = EM_ASM_INT({ return Module.lolText ? Module.lolText.length : 0; });
+		for (int i = 0; i < len && i < 80; i++)
+			desc += (char)EM_ASM_INT({ return Module.lolText[$0]; }, i);
+		if (desc.empty())
+			desc = "Sauvegarde web";
+		int slot = a;
+		if (slot < 0) {
+			for (slot = 0; slot < 990; slot++) {
+				Common::InSaveFile *in = _saveFileMan->openForLoading(getSavegameFilename(slot));
+				if (!in)
+					break;
+				delete in;
+			}
+		}
+		if (slot < 0 || slot >= 990)
+			return 1;
+		updatePlayTimer();
+		if (saveGameStateIntern(slot, desc.c_str(), nullptr).getCode() != Common::kNoError)
+			return 5;
+		webInventoryCommand(14, 0, 0);	// liste à jour
 		return 0;
 	}
 	if (op == 14) {	// lister les sauvegardes (publiées en zone 0x7F000700 : nombre u16, puis n° u16 + nom 40 octets)
