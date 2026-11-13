@@ -32,6 +32,7 @@
 #include "audio/audiostream.h"
 
 #include "common/config-manager.h"
+#include "common/savefile.h"
 #include "common/system.h"
 #include "common/translation.h"
 
@@ -1037,6 +1038,11 @@ void LoLEngine::webPublishState(bool mainLoop) {
 		for (int k = 0; k < 30; k++) u8(n && k < (int)strlen(n) ? (uint8)n[k] : 0);
 	}
 	end();
+	// sauvegardes listées par la commande 14
+	begin(0x7F000700);
+	for (uint i = 0; i < _webSaveList.size(); i++) u8(_webSaveList[i]);
+	if (_webSaveList.empty()) { u8(0xFF); u8(0xFF); }	// pas encore listées
+	end();
 	// volumes du jeu (musique, effets, voix : 2 = coupé … 102), comme le menu « Contrôles audio »
 	begin(0x7F000600);
 	for (int v = 0; v < 3; v++) u8(getVolume((KyraEngine_v1::kVolumeEntry)v));
@@ -1202,6 +1208,40 @@ int LoLEngine::webInventoryCommand(int op, int a, int b) {
 		const int32 need = _expRequirements[c.skillLevels[b]];
 		increaseExperience(a, b, need > c.experiencePts[b] ? need - c.experiencePts[b] : 0);
 		gui_drawCharPortraitWithStats(a);
+		return 0;
+	}
+	if (op == 14) {	// lister les sauvegardes (publiées en zone 0x7F000700 : nombre u16, puis n° u16 + nom 40 octets)
+		Common::SaveFileManager *sfm = _system->getSavefileManager();
+		Common::StringArray files = sfm->listSavefiles(_targetName + ".###");
+		Common::Array<int> slots;
+		for (const auto &f : files) {
+			const int slot = atoi(f.c_str() + f.size() - 3);
+			if (slot >= 0 && slot <= 999)
+				slots.push_back(slot);
+		}
+		Common::sort(slots.begin(), slots.end());
+		_webSaveList.clear();
+		_webSaveList.push_back(0); _webSaveList.push_back(0);
+		int n = 0;
+		for (int slot : slots) {
+			Common::InSaveFile *in = sfm->openForLoading(getSavegameFilename(_targetName, slot));
+			if (!in)
+				continue;
+			SaveHeader header;
+			if (readSaveHeader(in, header) == kRSHENoError && n < 200) {
+				_webSaveList.push_back(slot & 0xFF); _webSaveList.push_back(slot >> 8);
+				for (uint k = 0; k < 40; k++) _webSaveList.push_back(k < header.description.size() ? (byte)header.description[k] : 0);
+				n++;
+			}
+			delete in;
+		}
+		_webSaveList[0] = n & 0xFF; _webSaveList[1] = n >> 8;
+		return 0;
+	}
+	if (op == 15) {	// charger la sauvegarde a (comme le menu « Charger une partie » : _gameToLoad, lu par runLoop)
+		if (a < 0 || a > 999 || !saveFileLoadable(a))
+			return 1;
+		_gameToLoad = a;
 		return 0;
 	}
 	if (op == 13) {	// téléportation dans le niveau : case a, direction b (0-3, sinon inchangée)
