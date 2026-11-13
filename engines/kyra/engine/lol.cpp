@@ -1021,6 +1021,16 @@ void LoLEngine::webPublishState(bool mainLoop) {
 		for (int k = 0; k < 30; k++) u8(n && k < (int)strlen(n) ? (uint8)n[k] : 0);
 	}
 	end();
+	// les 7 sorts de joueur (types 0 à 6), connus ou non : 7 entrées de 46 octets
+	// magie requise u16 × 4, vie requise u16 × 4, nom (30 octets, CP850)
+	begin(0x7F000480);
+	for (int t = 0; t < 7; t++) {
+		for (int l = 0; l < 4; l++) u16(_spellProperties ? _spellProperties[t].mpRequired[l] : 0);
+		for (int l = 0; l < 4; l++) u16(_spellProperties ? _spellProperties[t].hpRequired[l] : 0);
+		const char *n = _spellProperties ? getLangString(_spellProperties[t].spellNameCode) : "";
+		for (int k = 0; k < 30; k++) u8(n && k < (int)strlen(n) ? (uint8)n[k] : 0);
+	}
+	end();
 	begin(0x7F000000);
 	for (int t = 0; t < 5; t++) {
 		const int slot = _monsterProperties ? _monsterProperties[t].shapeIndex : -1;
@@ -1171,6 +1181,28 @@ int LoLEngine::webInventoryCommand(int op, int a, int b) {
 		const int32 need = _expRequirements[c.skillLevels[b]];
 		increaseExperience(a, b, need > c.experiencePts[b] ? need - c.experiencePts[b] : 0);
 		gui_drawCharPortraitWithStats(a);
+		return 0;
+	}
+	if (op == 11) {	// débloquer le sort de joueur a (0 à 6) ; b = personnage qui le « transmet » (animation)
+		// comme olol_addSpellToScroll (scripts du jeu : parchemins, maîtres de magie)
+		if (a < 0 || a > 6 || _activeMagicMenu != -1)
+			return 1;
+		for (int i = 0; i < 7; i++)
+			if (_availableSpells[i] == a)
+				return 6;	// déjà connu
+		if (b < 0 || b > 3 || !(_characters[b].flags & 1)) {
+			b = 0;
+			while (b < 3 && !(_characters[b].flags & 1))
+				b++;
+		}
+		addSpellToScroll(a, b);
+		if (_flagsTable[31] & 0x20) {	// parchemin des sorts affiché : le redessiner (page 2, puis écran)
+			const int cp = _screen->setCurPage(2);
+			gui_drawScroll();
+			_screen->setCurPage(cp);
+			_screen->copyRegion(12, 0, 12, 0, 87, 92, 2, 0, Screen::CR_NO_P_CHECK);
+			_screen->updateScreen();
+		}
 		return 0;
 	}
 	if (op == 9) {	// lancer un sort : a = lanceur, b = type | niveau (0-3) << 8 | (cible + 1) << 12
