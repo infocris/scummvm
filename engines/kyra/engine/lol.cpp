@@ -1037,6 +1037,10 @@ void LoLEngine::webPublishState(bool mainLoop) {
 		for (int k = 0; k < 30; k++) u8(n && k < (int)strlen(n) ? (uint8)n[k] : 0);
 	}
 	end();
+	// volumes du jeu (musique, effets, voix : 2 = coupé … 102), comme le menu « Contrôles audio »
+	begin(0x7F000600);
+	for (int v = 0; v < 3; v++) u8(getVolume((KyraEngine_v1::kVolumeEntry)v));
+	end();
 	// les 7 sorts de joueur (types 0 à 6), connus ou non : 7 entrées de 46 octets
 	// magie requise u16 × 4, vie requise u16 × 4, nom (30 octets, CP850)
 	begin(0x7F000480);
@@ -1198,6 +1202,15 @@ int LoLEngine::webInventoryCommand(int op, int a, int b) {
 		const int32 need = _expRequirements[c.skillLevels[b]];
 		increaseExperience(a, b, need > c.experiencePts[b] ? need - c.experiencePts[b] : 0);
 		gui_drawCharPortraitWithStats(a);
+		return 0;
+	}
+	if (op == 12) {	// volume a (0 musique, 1 effets, 2 voix) à b (2 = coupé … 102), comme le menu « Contrôles audio »
+		if (a < 0 || a > 2 || b < 2 || b > 102)
+			return 1;
+		if (a == 2)
+			snd_stopSpeech(0);
+		setVolume((KyraEngine_v1::kVolumeEntry)a, b);
+		ConfMan.flushToDisk();
 		return 0;
 	}
 	if (op == 11) {	// débloquer le sort de joueur a (0 à 6) ; b = personnage qui le « transmet » (animation)
