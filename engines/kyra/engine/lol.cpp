@@ -1068,9 +1068,11 @@ void LoLEngine::webPublishState(bool mainLoop) {
 		for (int k = 0; k < 30; k++) u8(n && k < (int)strlen(n) ? (uint8)n[k] : 0);
 	}
 	end();
-	// points de vie maximum des 5 types de monstres du niveau (u16 ; type = champ +32 du monstre)
+	// points de vie maximum des 5 types de monstres du niveau (u16 ; type = champ +32 du monstre),
+	// puis leurs drapeaux (u16 ; 0x800 = translucide, 0x200 = image retournée, 0xC000 = sang)
 	begin(0x7F000900);
 	for (int t = 0; t < 5; t++) u16(_monsterProperties ? _monsterProperties[t].hitPoints : 0);
+	for (int t = 0; t < 5; t++) u16(_monsterProperties ? _monsterProperties[t].flags : 0);
 	end();
 	// personnages prédéfinis (table de addCharacter) : nombre u8, puis id i16 + nom 11 octets + raceClassSex
 	begin(0x7F000800);
