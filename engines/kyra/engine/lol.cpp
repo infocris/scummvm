@@ -1038,6 +1038,15 @@ void LoLEngine::webPublishState(bool mainLoop) {
 		for (int k = 0; k < 30; k++) u8(n && k < (int)strlen(n) ? (uint8)n[k] : 0);
 	}
 	end();
+	// personnages prédéfinis (table de addCharacter) : nombre u8, puis id i16 + nom 11 octets + raceClassSex
+	begin(0x7F000800);
+	u8(_charDefaults ? _charDefaultsSize : 0);
+	for (int i = 0; _charDefaults && i < _charDefaultsSize; i++) {
+		u16((uint16)_charDefaults[i].id);
+		for (int k = 0; k < 11; k++) u8((uint8)_charDefaults[i].name[k]);
+		u8(_charDefaults[i].raceClassSex);
+	}
+	end();
 	// sauvegardes listées par la commande 14
 	begin(0x7F000700);
 	for (uint i = 0; i < _webSaveList.size(); i++) u8(_webSaveList[i]);
@@ -1211,6 +1220,8 @@ int LoLEngine::webInventoryCommand(int op, int a, int b) {
 		gui_drawCharPortraitWithStats(a);
 		return 0;
 	}
+	if (op == 17)	// place a du groupe (1 ou 2) : personnage b de la table (0 = place vidée)
+		return webSetCharacter(a, b);
 	if (op == 16) {	// sauvegarder dans l'emplacement a (-1 : premier libre), nom = texte UTF-8 de la commande
 		// comme le menu « Sauvegarder » du jeu (clickedSavenameMenu) ; miniature générée par le moteur
 		Common::String desc;
@@ -1661,6 +1672,66 @@ int LoLEngine::decodeCyrillic(const char *src, char *dst) {
 
 	*dst++ = 0;
 	return size;
+}
+
+// Version web : met le personnage prédéfini « id » dans la place « slot » du groupe (1 ou 2 ; la
+// place 0 est le héros choisi au début), comme addCharacter (fiche par défaut, visage, objets de
+// départ). id 0 : place vidée, les suivantes sont tassées (le jeu compte les personnages actifs
+// à partir de la place 0, sans trou). Les objets du personnage remplacé vont dans le sac (au sol
+// s'il est plein). Codes : 0 ok, 1 impossible, 6 déjà dans le groupe.
+int LoLEngine::webSetCharacter(int slot, int id) {
+	const uint16 *cdf[] = {
+		_charDefsMan, _charDefsMan, _charDefsMan, _charDefsWoman,
+		_charDefsMan, _charDefsMan, _charDefsWoman, _charDefsKieran, _charDefsAkshel
+	};
+	const int n = countActiveCharacters();
+	if (slot < 1 || slot > 2 || slot > n || (id == 0 && slot >= n) || (_updateFlags & 0x0F) || _weaponsDisabled || _activeMagicMenu != -1)
+		return 1;
+	int def = -1;
+	if (id) {
+		for (int i = 0; i < n; i++)
+			if (i != slot && _characters[i].id == id)
+				return 6;
+		for (int i = 0; i < _charDefaultsSize && i < ARRAYSIZE(cdf); i++)
+			if (_charDefaults[i].id == id)
+				def = i;
+		if (def < 0)
+			return 1;
+	}
+	if (slot < n) {	// objets du personnage remplacé : sac, sinon sol
+		for (int k = 0; k < 11; k++) {
+			const Item it = _characters[slot].items[k];
+			if (!it)
+				continue;
+			_characters[slot].items[k] = 0;
+			if (!addItemToInventory(it))
+				placeMoveLevelItem(it, _currentLevel, _currentBlock, 0, 0, 0);
+		}
+	}
+	if (!id) {
+		for (int j = slot; j < n - 1; j++) {
+			_characters[j] = _characters[j + 1];
+			loadCharFaceShapes(j, _characters[j].id);
+		}
+		_characters[n - 1].flags &= ~1;
+	} else {
+		memcpy(&_characters[slot], &_charDefaults[def], sizeof(LoLCharacter));
+		_characters[slot].defaultModifiers = cdf[def];
+		loadCharFaceShapes(slot, id);
+		_characters[slot].nextAnimUpdateCountdown = rollDice(1, 12) + 6;
+		for (int k = 0; k < 11; k++) {
+			if (_characters[slot].items[k]) {
+				_characters[slot].items[k] = makeItem(_characters[slot].items[k], 0, 0);
+				runItemScript(slot, _characters[slot].items[k], 0x80, 0, 0);
+			}
+		}
+	}
+	if (_selectedCharacter >= countActiveCharacters())
+		_selectedCharacter = 0;
+	calcCharPortraitXpos();
+	gui_enableDefaultPlayfieldButtons();
+	gui_drawPlayField();
+	return 0;
 }
 
 bool LoLEngine::addCharacter(int id) {
