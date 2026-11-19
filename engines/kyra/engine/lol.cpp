@@ -1074,6 +1074,31 @@ void LoLEngine::webPublishState(bool mainLoop) {
 	for (int t = 0; t < 5; t++) u16(_monsterProperties ? _monsterProperties[t].hitPoints : 0);
 	for (int t = 0; t < 5; t++) u16(_monsterProperties ? _monsterProperties[t].flags : 0);
 	end();
+	// carte automatique du jeu, tous niveaux : niveaux visités (u32, bit n-1 = niveau n ; _hasTempDataFlags,
+	// plus le niveau en cours), puis 29 × 128 octets (bit i&7 de l'octet i>>3 : case i marquée, flags & 7).
+	// Niveau en cours : grille vivante ; autres : données gardées en quittant le niveau (_lvlTempData).
+	begin(0x7F001000);
+	{
+		uint32 visited = _hasTempDataFlags;
+		if (_currentLevel >= 1 && _currentLevel <= 29)
+			visited |= 1u << (_currentLevel - 1);
+		u8(visited & 0xFF); u8((visited >> 8) & 0xFF); u8((visited >> 16) & 0xFF); u8(visited >> 24);
+		for (int l = 0; l < 29; l++) {
+			const bool cur = l + 1 == _currentLevel && _levelBlockProperties;
+			const uint16 *fl = (!cur && (_hasTempDataFlags & (1u << l)) && _lvlTempData[l]) ? _lvlTempData[l]->flags : nullptr;
+			for (int b = 0; b < 128; b++) {
+				uint8 v = 0;
+				for (int k = 0; k < 8; k++) {
+					const int i = b * 8 + k;
+					const uint16 f = cur ? _levelBlockProperties[i].flags : fl ? fl[i] : 0;
+					if (f & 7)
+						v |= 1 << k;
+				}
+				u8(v);
+			}
+		}
+	}
+	end();
 	// personnages prédéfinis (table de addCharacter) : nombre u8, puis id i16 + nom 11 octets + raceClassSex
 	begin(0x7F000800);
 	u8(_charDefaults ? _charDefaultsSize : 0);
