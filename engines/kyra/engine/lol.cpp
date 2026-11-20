@@ -935,7 +935,7 @@ void LoLEngine::startupNew() {
 }
 
 // Version web (emscripten) : publie l'état du jeu pour la mini-carte de la page, sous la forme
-// de zones d'octets placées aux adresses physiques du jeu DOS (docs/retro-conception.md, § 12)
+// de zones d'octets placées aux adresses physiques du jeu DOS (docs/reverse-engineering.md, § 12)
 // et rangées comme dans le jeu DOS (structures compactées, pointeurs sur 4 octets mis à 0).
 // La page répond avec ces zones sur le canal « lol-mem » comme l'émulateur DOSBox.
 // Format : (adresse u32, longueur u32, octets)…, petit-boutiste.
