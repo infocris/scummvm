@@ -1410,6 +1410,48 @@ int LoLEngine::webInventoryCommand(int op, int a, int b) {
 		_webAutoSpell[a] = (b >= 0 && b <= 6) ? b : 0xFF;
 		return 0;
 	}
+	if (op == 20) {	// cliquer le mur devant le groupe (levier, bouton, interrupteur de porte, décor à script), comme
+		// un clic sur la vue (clickedWall) ; la souris est placée au centre de la décoration du mur,
+		// que clickedShape vérifie. Réponse : 0 fait, 2 rien d'actionnable, 3 clic sans effet.
+		if (_updateFlags & 0x0F)
+			return 11;
+		if (_weaponsDisabled)
+			return 12;
+		if (_activeMagicMenu != -1)
+			return 13;
+		const int block = calcNewBlockPosition(_currentBlock, _currentDirection);
+		const int dir = _currentDirection ^ 2;
+		const uint8 wall = _levelBlockProperties[block].walls[dir];
+		const uint8 type = _specialWallTypes[wall];
+		if (!type || type > 5)	// 6 = niche : il faut un objet en main, déposé à la souris
+			return 2;
+		int mx = 112 + 88, my = 8 + 40;
+		for (int l = (int8)_wllShapeMap[wall]; l > 0; l = _levelDecorationProperties[l].next) {
+			const uint16 s = _levelDecorationProperties[l].shapeIndex[1];
+			if (s == 0xFFFF || !_levelDecorationShapes[s])
+				continue;
+			int w = _levelDecorationShapes[s][3];
+			const int h = _levelDecorationShapes[s][2];
+			if (_levelDecorationProperties[l].flags & 1)
+				w <<= 1;
+			mx = _levelDecorationProperties[l].shapeX[1] + _clickedShapeXOffs + w / 2;
+			my = _levelDecorationProperties[l].shapeY[1] + _clickedShapeYOffs + h / 2;
+			break;
+		}
+		// bouton (1) et porte (5) lancent leur script avec 0x40 écrit en dur : le test de position
+		// (clickedShape, actif seulement si _clickedSpecialFlag vaut 0x40) est inutile ; les
+		// leviers (2, 3) et les scripts seuls (4) passent _clickedSpecialFlag au script : gardé
+		const int ox = _mouseX, oy = _mouseY, of = _clickedSpecialFlag;
+		_mouseX = mx;
+		_mouseY = my;
+		if (type == 1 || type == 5)
+			_clickedSpecialFlag = 0;
+		const int res = clickedWall(nullptr);
+		_clickedSpecialFlag = of;
+		_mouseX = ox;
+		_mouseY = oy;
+		return res ? 0 : 3;
+	}
 	if (op == 6) {	// ajouter a couronnes
 		if (a <= 0)
 			return 1;
