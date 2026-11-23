@@ -1455,6 +1455,43 @@ int LoLEngine::webInventoryCommand(int op, int a, int b) {
 		_mouseY = oy;
 		return res ? 0 : 3;
 	}
+	if (op == 21) {	// utiliser l'objet de la case a du sac (0-47) sur le personnage b, comme un clic droit sur
+		// son portrait avec l'objet en main (clickedPortraitEtcRight) : script de l'objet (0x400) et
+		// script du niveau. L'objet tenu avant est rendu à la main ; ce qui reste en main après le
+		// script (objet non consommé, flacon vide…) retourne dans le sac.
+		// Réponse : 0 utilisé, 1 invalide, 3 case vide, 4 objet non utilisable, 5 personnage hors de
+		// combat, 11 dialogue ou scène, 13 menu de magie ouvert.
+		if (a < 0 || a >= 48 || b < 0 || b > 3 || !(_characters[b].flags & 1))
+			return 1;
+		if (_updateFlags & 0x0D)
+			return 11;
+		if (_activeMagicMenu != -1)
+			return 13;
+		const Item item = _inventory[a];
+		if (!item)
+			return 3;
+		const int flg = _itemProperties[_itemsInPlay[item].itemPropertyIndex].flags;
+		if (!(flg & 1))
+			return 4;
+		if ((_characters[b].flags & 8) && !(flg & 0x20))
+			return 5;
+		const Item held = _itemInHand;
+		_inventory[a] = 0;
+		setHandItem(item);
+		runItemScript(b, _itemInHand, 0x400, 0, 0);
+		runLevelScriptCustom(_currentBlock, 0x400, b, _itemInHand, 0, 0);
+		const Item left = _itemInHand;
+		setHandItem(held);
+		if (left) {
+			if (!_inventory[a])
+				_inventory[a] = left;
+			else if (!addItemToInventory(left))
+				setHandItem(left);
+		}
+		gui_drawInventory();
+		gui_drawCharPortraitWithStats(b);
+		return 0;
+	}
 	if (op == 6) {	// ajouter a couronnes
 		if (a <= 0)
 			return 1;
