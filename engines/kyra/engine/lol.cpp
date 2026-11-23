@@ -1019,6 +1019,9 @@ void LoLEngine::webPublishState(bool mainLoop) {
 
 	begin(0x3E4E0); u16(_currentBlock); end();
 	begin(0x3E4EF); u16(_currentDirection); end();
+	// niveau en cours (u8) : les niveaux 2 et 3 (forêts du Nord et du Sud) ont la même carte à
+	// 4 faces près, la page ne peut pas les distinguer par la grille
+	begin(0x7F000A00); u8(_currentLevel); end();
 	begin(0x5D6B5); u8(_specialSceneFlag ? 1 : 5); end();
 	begin(0x3E6F0); u16(_credits); end();
 	begin(0x3E558); u16(_itemInHand); end();
