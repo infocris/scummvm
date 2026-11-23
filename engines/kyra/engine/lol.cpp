@@ -1022,6 +1022,16 @@ void LoLEngine::webPublishState(bool mainLoop) {
 	// niveau en cours (u8) : les niveaux 2 et 3 (forêts du Nord et du Sud) ont la même carte à
 	// 4 faces près, la page ne peut pas les distinguer par la grille
 	begin(0x7F000A00); u8(_currentLevel); end();
+	// dernière réplique : numéro u16, locuteur s8 (0-3 place dans le groupe, -1 hors du groupe,
+	// -2 sans locuteur), longueur u16, texte (codage du jeu, 400 octets au plus)
+	begin(0x7F000B00);
+	{
+		const uint n = MIN<uint>(_webDialogue.size(), 400);
+		u16(_webDialogueSeq); u8((uint8)(int8)_webDialogueSpeaker); u16(n);
+		for (uint k = 0; k < n; k++)
+			u8((uint8)_webDialogue[k]);
+	}
+	end();
 	begin(0x5D6B5); u8(_specialSceneFlag ? 1 : 5); end();
 	begin(0x3E6F0); u16(_credits); end();
 	begin(0x3E558); u16(_itemInHand); end();
@@ -2755,6 +2765,7 @@ int LoLEngine::playCharacterScriptChat(int charId, int mode, int restorePortrait
 		}
 	}
 
+	_webSpeaker = skipAnim ? -1 : charId;	// version web : locuteur de la réplique (webDialogue)
 	if (!skipAnim && charId < 3) {
 		_updateCharNum = charId;
 		_portraitSpeechAnimMode = mode;

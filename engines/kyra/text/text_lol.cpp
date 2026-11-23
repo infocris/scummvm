@@ -163,6 +163,7 @@ void TextDisplayer_LoL::printDialogueText2(int dim, const char *str, EMCState *s
 	Screen::FontId of = _screen->setFont(_vm->gameFlags().lang == Common::Language::ZH_TWN ? Screen::FID_CHINESE_FNT : _pc98TextMode ? Screen::FID_SJIS_TEXTMODE_FNT : Screen::FID_9_FNT);
 
 	preprocessString(str, script, paramList, paramIndex);
+	_vm->webDialogue(_dialogueBuffer);	// version web : réplique publiée (zone 0x7F000B00)
 	_numCharsTotal = Common::strnlen(_dialogueBuffer, 2559);
 	displayText(_dialogueBuffer);
 

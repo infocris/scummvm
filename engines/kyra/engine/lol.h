@@ -1087,6 +1087,14 @@ private:
 	int webCastSpell(int charNum, int spell, int level, int target);	// version web : comme le menu de magie d'un portrait
 	uint8 _webAutoSpell[4] = { 0xFF, 0xFF, 0xFF, 0xFF };	// attaque auto : sort de chaque personnage (0xFF = arme)	// version web : choisir le personnage d'une place du groupe	// version web : sauvegardes listées (n° u16, nom 40 octets)
 	bool _webInMenu = false;	// version web : menu (disquette) ouvert
+	// version web : dernière réplique affichée (texte mis en forme), qui la dit (place 0-3 dans le
+	// groupe, -1 personnage hors du groupe, -2 texte sans locuteur) et numéro de réplique
+public:
+	void webDialogue(const char *text) { _webDialogue = text; _webDialogueSeq++; _webDialogueSpeaker = _webSpeaker; _webSpeaker = -2; }
+private:
+	Common::String _webDialogue;
+	uint16 _webDialogueSeq = 0;
+	int _webDialogueSpeaker = -2, _webSpeaker = -2;
 	bool _webCasting = false;	// version web : sort en cours (animation dans la fenêtre de scène)
 	bool _webLoadingLevel = false;	// version web : changement de niveau, jusqu'au retour dans la boucle principale
 	uint32 _webLoopCount = 0;	// version web : tours de la boucle principale
