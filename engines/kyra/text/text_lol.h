@@ -41,6 +41,8 @@ public:
 	~TextDisplayer_LoL() override;
 
 	void setupField(bool mode);
+	// version web : texte mis en forme (paramètres du script) sans l'afficher, pour le publier
+	const char *webFormat(const char *str, EMCState *script, const uint16 *paramList, int16 paramIndex) { preprocessString(str, script, paramList, paramIndex); return _dialogueBuffer; }
 	void expandField();
 
 	void printDialogueText2(int dim, const char *str, EMCState *script, const uint16 *paramList, int16 paramIndex);

@@ -2778,6 +2778,8 @@ int LoLEngine::playCharacterScriptChat(int charId, int mode, int restorePortrait
 	else if (paramList)
 		snd_playCharacterSpeech(paramList[2], ch, 0);
 
+	if (!textEnabled())	// version web : voix seule, la réplique est publiée quand même
+		webDialogue(_txt->webFormat(str, script, paramList, mode == 2 ? 3 : paramIndex));
 	if (textEnabled()) {
 		if (mode == 0) {
 			_txt->printDialogueText2(3, str, script, paramList, paramIndex);

@@ -1594,9 +1594,12 @@ int LoLEngine::olol_playDialogueTalkText(EMCState *script) {
 	debugC(3, kDebugLevelScriptFuncs, "LoLEngine::olol_playDialogueTalkText(%p) (%d)", (const void *)script, stackPos(0));
 	int track = stackPos(0);
 
+	_webSpeaker = -1;	// version web : réplique d'un personnage hors du groupe
 	if (!snd_playCharacterSpeech(track, 0, 0) || textEnabled()) {
 		const char *s = getLangString(track);
 		_txt->printDialogueText2(4, s, script, 0, 1);
+	} else {
+		webDialogue(_txt->webFormat(getLangString(track), script, 0, 1));	// voix seule : réplique publiée quand même
 	}
 
 	return 1;
