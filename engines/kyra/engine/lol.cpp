@@ -1492,6 +1492,37 @@ int LoLEngine::webInventoryCommand(int op, int a, int b) {
 		gui_drawCharPortraitWithStats(b);
 		return 0;
 	}
+	if (op == 22) {	// objet en main : a = 0 le lancer devant le groupe, comme un clic dans le haut de la vue
+		// (clickedSceneThrowItem : vers un monstre) ; a = 1 à 4 le poser, comme un clic sur le sol
+		// (clickedSceneDropItem, bouton a − 1 : 0/1 case du groupe à gauche/droite, 2/3 case devant).
+		// Réponse : 0 fait, 1 rien en main, 2 impossible (mur devant…), 11 dialogue ou scène.
+		if (!_itemInHand)
+			return 1;
+		if (_updateFlags & 1)
+			return 11;
+		const Item before = _itemInHand;
+		Button btn;
+		btn.arg = a > 0 ? a - 1 : 0;
+		if (a == 0)
+			clickedSceneThrowItem(&btn);
+		else if (a >= 1 && a <= 4)
+			clickedSceneDropItem(&btn);
+		else
+			return 1;
+		return _itemInHand == before ? 2 : 0;
+	}
+	if (op == 23) {	// objet en main utilisé sur le personnage a, comme un clic droit sur son portrait
+		// (clickedPortraitEtcRight). Réponse : 0 fait, 1 rien en main ou personnage absent, 11 dialogue.
+		if (!_itemInHand || a < 0 || a > 3 || !(_characters[a].flags & 1))
+			return 1;
+		if (_updateFlags & 0x0D)
+			return 11;
+		Button btn;
+		btn.arg = a;
+		clickedPortraitEtcRight(&btn);
+		gui_drawCharPortraitWithStats(a);
+		return 0;
+	}
 	if (op == 6) {	// ajouter a couronnes
 		if (a <= 0)
 			return 1;
