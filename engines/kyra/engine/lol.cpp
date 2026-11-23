@@ -948,9 +948,11 @@ void LoLEngine::webPublishState(bool mainLoop) {
 		_webLoopCount++;
 		_webLoadingLevel = false;
 	}
-	const bool changed = mainLoop && EM_ASM_INT({ return Module.lolCmds && Module.lolCmds.length ? 1 : 0; });
+	// hors de la boucle principale (dialogues, scènes de lieu comme une boutique) : seuls les
+	// déplacements d'objets sac <-> main (commande 1) sont exécutés, pour vendre en montrant un objet
+	const bool changed = EM_ASM_INT({ return Module.lolCmds && Module.lolCmds.length ? 1 : 0; });
 	if (changed)
-		webRunCommands();
+		webRunCommands(mainLoop);
 	// attaque automatique : chaque personnage prêt frappe le monstre le plus proche de la case
 	// devant le groupe, comme un clic sur son arme (clickedAttackButton). Monstres paisibles
 	// (mode 1, ex. gardes de Gladstone) et mourants (mode >= 13) épargnés.
@@ -1225,10 +1227,15 @@ void LoLEngine::webPublishState(bool mainLoop) {
 // op 5 : triches vie (a & 1) / magie (a & 2) infinies ; op 6 : ajouter a couronnes ;
 // op 7 / 8 (tests) : b points de dégâts / de magie dépensée au perso a. Résultat (Module.lolCmdDone(id, code)) :
 // 0 fait, 1 emplacement ou objet impossible, 2 sac plein, 3 emplacement vide.
-void LoLEngine::webRunCommands() {
+void LoLEngine::webRunCommands(bool all) {
 #ifdef __EMSCRIPTEN__
 	while (EM_ASM_INT({ return Module.lolCmds.length; })) {
 		const int op = EM_ASM_INT({ return Module.lolCmds[0][0]; });
+		if (!all) {	// hors de la boucle principale : seulement sac <-> main
+			const int a0 = EM_ASM_INT({ return Module.lolCmds[0][1]; }) & 0x3FFF, b0 = EM_ASM_INT({ return Module.lolCmds[0][2]; });
+			if (op != 1 || !((a0 < 48 && b0 == 100) || (a0 == 100 && b0 < 48)))
+				break;
+		}
 		const int a = EM_ASM_INT({ return Module.lolCmds[0][1]; });
 		const int b = EM_ASM_INT({ return Module.lolCmds[0][2]; });
 		EM_ASM({ Module.lolText = Module.lolCmds[0][4] || null; });

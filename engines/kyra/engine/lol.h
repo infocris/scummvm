@@ -316,7 +316,7 @@ private:
 	// main loop
 	void runLoop();
 	void webPublishState(bool mainLoop = true);	// version web : état du jeu aux adresses du jeu DOS, pour la mini-carte
-	void webRunCommands();	// version web : commandes d'inventaire envoyées par la page
+	void webRunCommands(bool all = true);	// version web : commandes d'inventaire envoyées par la page
 	int webInventoryCommand(int op, int a, int b);
 	Item webItemAt(int loc);
 	bool webSlotUsable(int c, int k) const;
