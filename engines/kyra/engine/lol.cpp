@@ -1022,6 +1022,8 @@ void LoLEngine::webPublishState(bool mainLoop) {
 	// niveau en cours (u8) : les niveaux 2 et 3 (forêts du Nord et du Sud) ont la même carte à
 	// 4 faces près, la page ne peut pas les distinguer par la grille
 	begin(0x7F000A00); u8(_currentLevel); end();
+	// fiche de personnage du jeu : ouverte (u8), personnage affiché (u8)
+	begin(0x7F000D00); u8((_updateFlags & 2) ? 1 : 0); u8(_selectedCharacter); end();
 	// emplacements d'équipement utilisables par la race de chaque personnage (4 × u16, bit k = emplacement k)
 	begin(0x7F000C00);
 	for (int c = 0; c < 4; c++) {
@@ -1590,6 +1592,23 @@ int LoLEngine::webInventoryCommand(int op, int a, int b) {
 		}
 		setItemPosition(found, _partyPosX, _partyPosY, 0, 1);	// ni sac ni main : reposé aux pieds du groupe
 		return 2;
+	}
+	if (op == 25) {	// fiche de personnage du jeu : a = 0-3 l'ouvrir sur ce personnage (clic sur son portrait,
+		// clickedPortraitLeft), a = -1 la fermer (bouton de sortie, clickedExitCharInventory).
+		// Réponse : 0 fait, 1 personnage absent, 11 dialogue ou scène.
+		Button btn;
+		if (a < 0) {
+			if (_updateFlags & 2)
+				clickedExitCharInventory(&btn);
+			return 0;
+		}
+		if (a > 3 || !(_characters[a].flags & 1))
+			return 1;
+		if ((_updateFlags & 1) || _activeMagicMenu != -1)
+			return 11;
+		btn.arg = a;
+		clickedPortraitLeft(&btn);
+		return 0;
 	}
 	if (op == 6) {	// ajouter a couronnes
 		if (a <= 0)
