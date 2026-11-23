@@ -1022,6 +1022,17 @@ void LoLEngine::webPublishState(bool mainLoop) {
 	// niveau en cours (u8) : les niveaux 2 et 3 (forêts du Nord et du Sud) ont la même carte à
 	// 4 faces près, la page ne peut pas les distinguer par la grille
 	begin(0x7F000A00); u8(_currentLevel); end();
+	// emplacements d'équipement utilisables par la race de chaque personnage (4 × u16, bit k = emplacement k)
+	begin(0x7F000C00);
+	for (int c = 0; c < 4; c++) {
+		uint16 m = 0;
+		if (_characters[c].flags & 1)
+			for (int k = 0; k < 11; k++)
+				if (webSlotUsable(c, k))
+					m |= 1 << k;
+		u16(m);
+	}
+	end();
 	// dernière réplique : numéro u16, locuteur s8 (0-3 place dans le groupe, -1 hors du groupe,
 	// -2 sans locuteur), longueur u16, texte (codage du jeu, 400 octets au plus)
 	begin(0x7F000B00);
@@ -1225,6 +1236,10 @@ void LoLEngine::webRunCommands() {
 #endif
 }
 
+bool LoLEngine::webSlotUsable(int c, int k) const {
+	return _charInvDefs[_charInvIndex[_characters[c].raceClassSex] * 22 + k * 2] != 0xFF;
+}
+
 Item LoLEngine::webItemAt(int loc) {
 	if (loc >= 0 && loc < 48)
 		return _inventory[loc];
@@ -1261,9 +1276,18 @@ int LoLEngine::webInventoryCommand(int op, int a, int b) {
 	auto validLoc = [&](int loc) {
 		return (loc >= 0 && loc < 48) || loc == 100 || (loc >= 200 && loc < 244 && (_characters[(loc - 200) / 11].flags & 1));
 	};
+	// déplacement « strict » (page sans triches : bit 0x4000 de a) : en plus, emplacements que la race
+	// du personnage n'a pas (_charInvDefs à 0xFF, comme le jeu qui n'y affiche pas de case) refusés
+	bool strict = false;
+	if (op == 1 && (a & 0x4000)) {
+		strict = true;
+		a &= ~0x4000;
+	}
 	auto fits = [&](int loc, Item item) {	// l'objet peut-il aller à cet emplacement ?
 		if (!item || loc < 200)
 			return true;
+		if (strict && !webSlotUsable((loc - 200) / 11, (loc - 200) % 11))
+			return false;
 		return (_itemProperties[_itemsInPlay[item].itemPropertyIndex].type & (1 << ((loc - 200) % 11))) != 0;
 	};
 

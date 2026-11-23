@@ -319,6 +319,7 @@ private:
 	void webRunCommands();	// version web : commandes d'inventaire envoyées par la page
 	int webInventoryCommand(int op, int a, int b);
 	Item webItemAt(int loc);
+	bool webSlotUsable(int c, int k) const;
 	void webSetItemAt(int loc, Item item);
 	void update() override;
 
