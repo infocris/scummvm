@@ -1523,6 +1523,40 @@ int LoLEngine::webInventoryCommand(int op, int a, int b) {
 		gui_drawCharPortraitWithStats(a);
 		return 0;
 	}
+	if (op == 24) {	// ramasser au sol un objet de type b sur la case a (case du groupe ou case devant lui, comme
+		// clickedScenePickupItem) et le ranger dans le sac (en main si le sac est plein).
+		// Réponse : 0 fait (sac), 6 fait (en main, sac plein), 1 case hors de portée, 2 mur devant,
+		// 3 pas d'objet de ce type, 11 dialogue ou scène.
+		if (_updateFlags & 1)
+			return 11;
+		const int front = calcNewBlockPosition(_currentBlock, _currentDirection);
+		if (a != _currentBlock && a != front)
+			return 1;
+		if (a == front && (_wllWallFlags[_levelBlockProperties[front].walls[_currentDirection ^ 2]] & 2))
+			return 2;
+		Item found = 0;
+		for (uint16 o = _levelBlockProperties[a].drawObjects; o; ) {
+			if (!(o & 0x8000) && _itemsInPlay[o].itemPropertyIndex == b) {
+				found = o;
+				break;
+			}
+			o = findObject(o)->nextDrawObject;
+		}
+		if (!found)
+			return 3;
+		removeLevelItem(found, a);
+		_sceneUpdateRequired = true;
+		if (addItemToInventory(found)) {
+			gui_drawInventory();
+			return 0;
+		}
+		if (!_itemInHand) {
+			setHandItem(found);
+			return 6;
+		}
+		setItemPosition(found, _partyPosX, _partyPosY, 0, 1);	// ni sac ni main : reposé aux pieds du groupe
+		return 2;
+	}
 	if (op == 6) {	// ajouter a couronnes
 		if (a <= 0)
 			return 1;
