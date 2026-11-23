@@ -1023,7 +1023,8 @@ void LoLEngine::webPublishState(bool mainLoop) {
 	// 4 faces près, la page ne peut pas les distinguer par la grille
 	begin(0x7F000A00); u8(_currentLevel); end();
 	// fiche de personnage du jeu : ouverte (u8), personnage affiché (u8)
-	begin(0x7F000D00); u8((_updateFlags & 2) ? 1 : 0); u8(_selectedCharacter); end();
+	// (_weaponsDisabled : mis par clickedPortraitLeft à l'ouverture, remis à zéro par clickedExitCharInventory)
+	begin(0x7F000D00); u8(_weaponsDisabled ? 1 : 0); u8(_selectedCharacter); end();
 	// emplacements d'équipement utilisables par la race de chaque personnage (4 × u16, bit k = emplacement k)
 	begin(0x7F000C00);
 	for (int c = 0; c < 4; c++) {
