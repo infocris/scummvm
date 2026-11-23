@@ -1599,7 +1599,9 @@ int LoLEngine::olol_playDialogueTalkText(EMCState *script) {
 		const char *s = getLangString(track);
 		_txt->printDialogueText2(4, s, script, 0, 1);
 	} else {
-		webDialogue(_txt->webFormat(getLangString(track), script, 0, 1));	// voix seule : réplique publiée quand même
+		// voix seule : réplique publiée quand même. getLangString fait tourner 5 tampons de textes, dont
+		// les libellés des boutons de dialogue (Oui / Non) gardés par pointeur : rotation remise en état
+		webDialogue(_txt->webFormat(webLangString(track).c_str(), script, 0, 1).c_str());
 	}
 
 	return 1;

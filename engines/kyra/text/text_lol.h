@@ -42,7 +42,14 @@ public:
 
 	void setupField(bool mode);
 	// version web : texte mis en forme (paramètres du script) sans l'afficher, pour le publier
-	const char *webFormat(const char *str, EMCState *script, const uint16 *paramList, int16 paramIndex) { preprocessString(str, script, paramList, paramIndex); return _dialogueBuffer; }
+	// (_dialogueBuffer sert aussi au jeu, p. ex. pour redessiner un texte : il est rendu tel quel)
+	Common::String webFormat(const char *str, EMCState *script, const uint16 *paramList, int16 paramIndex) {
+		const Common::String saved(_dialogueBuffer);
+		preprocessString(str, script, paramList, paramIndex);
+		const Common::String out(_dialogueBuffer);
+		Common::strlcpy(_dialogueBuffer, saved.c_str(), 2560);
+		return out;
+	}
 	void expandField();
 
 	void printDialogueText2(int dim, const char *str, EMCState *script, const uint16 *paramList, int16 paramIndex);

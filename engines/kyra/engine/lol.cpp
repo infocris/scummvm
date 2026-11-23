@@ -1095,8 +1095,9 @@ void LoLEngine::webPublishState(bool mainLoop) {
 		u8(t < 0 ? 0xFF : t); u8(0);
 		for (int l = 0; l < 4; l++) u16(t < 0 ? 0 : _spellProperties[t].mpRequired[l]);
 		for (int l = 0; l < 4; l++) u16(t < 0 ? 0 : _spellProperties[t].hpRequired[l]);
-		const char *n = t < 0 ? "" : getLangString(_spellProperties[t].spellNameCode);
-		for (int k = 0; k < 30; k++) u8(n && k < (int)strlen(n) ? (uint8)n[k] : 0);
+		const Common::String ns = t < 0 ? Common::String() : webLangString(_spellProperties[t].spellNameCode);
+		const char *n = ns.c_str();
+		for (int k = 0; k < 30; k++) u8(k < (int)strlen(n) ? (uint8)n[k] : 0);
 	}
 	end();
 	// points de vie maximum des 5 types de monstres du niveau (u16 ; type = champ +32 du monstre),
@@ -1154,8 +1155,9 @@ void LoLEngine::webPublishState(bool mainLoop) {
 	for (int t = 0; t < 7; t++) {
 		for (int l = 0; l < 4; l++) u16(_spellProperties ? _spellProperties[t].mpRequired[l] : 0);
 		for (int l = 0; l < 4; l++) u16(_spellProperties ? _spellProperties[t].hpRequired[l] : 0);
-		const char *n = _spellProperties ? getLangString(_spellProperties[t].spellNameCode) : "";
-		for (int k = 0; k < 30; k++) u8(n && k < (int)strlen(n) ? (uint8)n[k] : 0);
+		const Common::String ns = _spellProperties ? webLangString(_spellProperties[t].spellNameCode) : Common::String();
+		const char *n = ns.c_str();
+		for (int k = 0; k < 30; k++) u8(k < (int)strlen(n) ? (uint8)n[k] : 0);
 	}
 	end();
 	begin(0x7F000000);
@@ -1246,6 +1248,20 @@ void LoLEngine::webRunCommands(bool all) {
 		EM_ASM({ if (Module.lolCmdDone) Module.lolCmdDone($0, $1); }, id, res);
 	}
 #endif
+}
+
+// getLangString écrit dans l'un de 5 tampons tournants, que le jeu garde par pointeur (libellés des
+// boutons de dialogue Oui / Non…) : la publication lit le texte puis remet tampon et rotation en état
+// (sans cela, survoler « Non » pendant une vente affichait des noms de sorts sur les boutons)
+Common::String LoLEngine::webLangString(uint16 id) {
+	const int idx = _lastUsedStringBuffer;
+	char saved[sizeof(_stringBuffer[0])];
+	memcpy(saved, _stringBuffer[idx], sizeof(saved));
+	const char *str = getLangString(id);
+	const Common::String out(str ? str : "");
+	memcpy(_stringBuffer[idx], saved, sizeof(saved));
+	_lastUsedStringBuffer = idx;
+	return out;
 }
 
 bool LoLEngine::webSlotUsable(int c, int k) const {
@@ -2833,7 +2849,7 @@ int LoLEngine::playCharacterScriptChat(int charId, int mode, int restorePortrait
 		snd_playCharacterSpeech(paramList[2], ch, 0);
 
 	if (!textEnabled())	// version web : voix seule, la réplique est publiée quand même
-		webDialogue(_txt->webFormat(str, script, paramList, mode == 2 ? 3 : paramIndex));
+		webDialogue(_txt->webFormat(str, script, paramList, mode == 2 ? 3 : paramIndex).c_str());
 	if (textEnabled()) {
 		if (mode == 0) {
 			_txt->printDialogueText2(3, str, script, paramList, paramIndex);

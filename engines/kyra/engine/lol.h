@@ -320,6 +320,7 @@ private:
 	int webInventoryCommand(int op, int a, int b);
 	Item webItemAt(int loc);
 	bool webSlotUsable(int c, int k) const;
+	Common::String webLangString(uint16 id);
 	void webSetItemAt(int loc, Item item);
 	void update() override;
 
