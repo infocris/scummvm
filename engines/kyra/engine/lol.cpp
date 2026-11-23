@@ -1599,7 +1599,7 @@ int LoLEngine::webInventoryCommand(int op, int a, int b) {
 		// Réponse : 0 fait, 1 personnage absent, 11 dialogue ou scène.
 		Button btn;
 		if (a < 0) {
-			if (_updateFlags & 2)
+			if (_weaponsDisabled)
 				clickedExitCharInventory(&btn);
 			return 0;
 		}
