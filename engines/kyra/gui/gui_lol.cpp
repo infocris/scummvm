@@ -87,9 +87,83 @@ void LoLEngine::gui_drawInventory() {
 	}
 }
 
+// version web : deux objets vont dans la même pile s'ils sont du même type et ont la même image
+// (charges d'une baguette, état d'un objet : bits 0-12 de shpCurFrame_flg)
+bool LoLEngine::webSameStack(Item a, Item b) const {
+	return a && b && _itemsInPlay[a].itemPropertyIndex == _itemsInPlay[b].itemPropertyIndex &&
+		(_itemsInPlay[a].shpCurFrame_flg & 0x1FFF) == (_itemsInPlay[b].shpCurFrame_flg & 0x1FFF);
+}
+
+// piles du sac, dans l'ordre des emplacements : premier emplacement et nombre d'objets de chacune
+int LoLEngine::webStackList(int8 *first, uint8 *count) const {
+	int n = 0;
+	for (int i = 0; i < 48; i++) {
+		if (!_inventory[i])
+			continue;
+		int k = 0;
+		while (k < n && !webSameStack(_inventory[first[k]], _inventory[i]))
+			k++;
+		if (k == n) {
+			first[n] = i;
+			count[n++] = 0;
+		}
+		count[k]++;
+	}
+	return n;
+}
+
+// emplacement réel visé par un clic sur la case index de la barre (-1 : rien à faire). Main vide :
+// premier objet de la pile. Objet en main d'un autre type : échange avec ce premier objet. Même
+// type, ou case vide : l'objet va dans un emplacement libre (il rejoint sa pile).
+int LoLEngine::webStackSlot(int index, Item hand) const {
+	int8 first[48];
+	uint8 count[48];
+	const int n = webStackList(first, count);
+	const int k = _webStackScroll + index;
+	const int target = k < n ? first[k] : -1;
+	if (!hand || (target >= 0 && !webSameStack(hand, _inventory[target])))
+		return target;
+	for (int i = 0; i < 48; i++) {
+		if (!_inventory[i])
+			return i;
+	}
+	return -1;
+}
+
+// défile la barre pour montrer la pile de l'objet (ajouté au sac)
+void LoLEngine::webStackShow(Item item) {
+	int8 first[48];
+	uint8 count[48];
+	const int n = webStackList(first, count);
+	for (int k = 0; k < n; k++) {
+		if (!webSameStack(_inventory[first[k]], item))
+			continue;
+		if (k < _webStackScroll || k >= _webStackScroll + 9)
+			_webStackScroll = MAX(0, MIN(k, n - 8));
+		return;
+	}
+}
+
 void LoLEngine::gui_drawInventoryItem(int index) {
 	static const uint16 inventoryXpos[] = { 0x6A, 0x7F, 0x94, 0xA9, 0xBE, 0xD3, 0xE8, 0xFD, 0x112 };
 	int x = inventoryXpos[index];
+	if (_webStackInv) {
+		int8 first[48];
+		uint8 count[48];
+		const int n = webStackList(first, count);
+		_webStackScroll = CLIP(_webStackScroll, 0, n >= 9 ? n - 8 : 0);	// une case vide au bout pour poser un nouveau type
+		const int k = _webStackScroll + index;
+		_screen->drawShape(_screen->_curPage, _gameShapes[4], x, 179, 0, k & 1 ? 0 : 1);
+		if (k < n) {
+			_screen->drawShape(_screen->_curPage, getItemIconShapePtr(_inventory[first[k]]), x + 1, 180, 0, 0);
+			if (count[k] > 1) {
+				Screen::FontId of = _screen->setFont(Screen::FID_6_FNT);
+				_screen->fprintString("%d", x + 20, 190, _flags.use16ColorMode ? 0x33 : 254, 0, 2 | 4, count[k]);
+				_screen->setFont(of);
+			}
+		}
+		return;
+	}
 	int item = _inventoryCurItem + index;
 	if (item > 47)
 		item -= 48;
@@ -1336,6 +1410,11 @@ int LoLEngine::clickedInventorySlot(Button *button) {
 	int slot = _inventoryCurItem + button->arg;
 	if (slot > 47)
 		slot -= 48;
+	if (_webStackInv) {	// version web : barre par piles
+		slot = webStackSlot(button->arg, _itemInHand);
+		if (slot < 0)
+			return 1;
+	}
 
 	uint16 slotItem = _inventory[slot];
 	int hItem = _itemInHand;
@@ -1378,7 +1457,10 @@ int LoLEngine::clickedInventorySlot(Button *button) {
 		_inventory[slot] = hItem;
 	}
 
-	gui_drawInventoryItem(button->arg);
+	if (_webStackInv)
+		gui_drawInventory();	// les piles ont changé (nombres, cases suivantes)
+	else
+		gui_drawInventoryItem(button->arg);
 
 	return 1;
 }
@@ -1391,6 +1473,14 @@ int LoLEngine::clickedInventoryScroll(Button *button) {
 
 	if (button->flags2 & 0x1000)
 		inc *= 9;
+
+	if (_webStackInv) {	// version web : barre par piles, sans tour complet (bornée au dessin)
+		_webStackScroll = MAX(0, _webStackScroll + inc);
+		gui_toggleButtonDisplayMode(shp, 1);
+		gui_drawInventory();
+		gui_toggleButtonDisplayMode(shp, 0);
+		return 1;
+	}
 
 	_inventoryCurItem += inc;
 

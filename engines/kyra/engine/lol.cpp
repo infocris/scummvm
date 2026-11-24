@@ -1637,6 +1637,23 @@ int LoLEngine::webInventoryCommand(int op, int a, int b) {
 		clickedPortraitLeft(&btn);
 		return 0;
 	}
+	if (op == 26) {	// barre d'objets du jeu par piles (a = 1) ou par emplacements (a = 0)
+		if ((a != 0) != _webStackInv) {
+			_webStackInv = a != 0;
+			if (_webStackInv) {	// on garde en vue la pile du premier objet visible
+				_webStackScroll = 0;
+				for (int i = 0; i < 9; i++) {
+					const Item it = _inventory[(_inventoryCurItem + i) % 48];
+					if (it) {
+						webStackShow(it);
+						break;
+					}
+				}
+			}
+			gui_drawInventory();
+		}
+		return 0;
+	}
 	if (op == 6) {	// ajouter a couronnes
 		if (a <= 0)
 			return 1;
