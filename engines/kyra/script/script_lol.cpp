@@ -603,6 +603,7 @@ int LoLEngine::olol_fadePalette(EMCState *script) {
 int LoLEngine::olol_loadBitmap(EMCState *script) {
 	debugC(3, kDebugLevelScriptFuncs, "LoLEngine::olol_loadBitmap(%p) (%s, %d)", (const void *)script, stackPosString(0), stackPos(1));
 	_screen->loadBitmap(stackPosString(0), 3, 3, &_screen->getPalette(3));
+	_webSceneArt = true;
 	if (stackPos(1) != 2)
 		_screen->copyPage(3, stackPos(1));
 	return 1;

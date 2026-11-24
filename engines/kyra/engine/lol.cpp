@@ -1065,6 +1065,7 @@ void LoLEngine::webPublishState(bool mainLoop) {
 	u8(_specialSceneFlag ? 1 : 0); u16(_updateFlags);
 	u16(_seqWindowX1); u16(_seqWindowY1); u16(_seqWindowX2); u16(_seqWindowY2);
 	u8(_webInMenu ? 1 : 0); u32(_webLoopCount); u8(_webLoadingLevel ? 1 : 0); u8(_webCasting ? 1 : 0);
+	u8(_webSceneArt ? 1 : 0);
 	end();
 	// image de chaque monstre telle que le jeu la dessine vu du groupe (drawMonster), 4 octets :
 	// numéro d'image (0-15, 255 = aucune) ; 1 = image retournée horizontalement ; giclée de coup

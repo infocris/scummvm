@@ -1093,7 +1093,11 @@ private:
 	// groupe, -1 personnage hors du groupe, -2 texte sans locuteur) et numéro de réplique
 public:
 	void webDialogue(const char *text) { _webDialogue = text; _webDialogueSeq++; _webDialogueSpeaker = _webSpeaker; _webSpeaker = -2; }
+	// version web : la fenêtre de scène montre une image de script (loadBitmap, WSA plein cadre :
+	// lieux, personnages, cinématiques), pas le décor ; effacé quand le décor est redessiné
+	void webSceneArt(bool on) { _webSceneArt = on; }
 private:
+	bool _webSceneArt = false;
 	Common::String _webDialogue;
 	uint16 _webDialogueSeq = 0;
 	int _webDialogueSpeaker = -2, _webSpeaker = -2;

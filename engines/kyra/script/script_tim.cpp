@@ -934,6 +934,9 @@ int TIMInterpreter_LoL::initAnimStruct(int index, const char *filename, int x, i
 
 	if (wsa && (wsaFlags & 7))
 		wsa->displayFrame(0, 0, x, y, 0, 0, 0);
+	// version web : animation qui couvre toute la fenêtre de scène (garde de Gladstone…)
+	if (wsa && wsa->width() >= 176 && wsa->height() >= 120)
+		_vm->webSceneArt(true);
 
 	if (wsaFlags & 3) {
 		if (_vm->_flags.use16ColorMode) {

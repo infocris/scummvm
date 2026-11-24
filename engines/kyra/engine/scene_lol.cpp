@@ -33,6 +33,7 @@ namespace Kyra {
 
 void LoLEngine::loadLevel(int index) {
 	_webLoadingLevel = true;	// version web : effacé au prochain tour de la boucle principale
+	_webSceneArt = false;
 	_flagsTable[73] |= 0x08;
 	setMouseCursorToIcon(0x85);
 	_nextScriptFunc = 0;
@@ -1209,6 +1210,7 @@ int LoLEngine::smoothScrollDrawSpecialGuiShape(int pageNum) {
 }
 
 void LoLEngine::drawScene(int pageNum) {
+	_webSceneArt = false;
 	if (pageNum && pageNum != _sceneDrawPage1) {
 			SWAP(_sceneDrawPage1, _sceneDrawPage2);
 		updateDrawPage2();
@@ -1313,6 +1315,7 @@ int LoLEngine::restoreAfterSpecialScene(int fadeFlag, int redrawPlayField, int r
 		return 0;
 
 	_needSceneRestore = 0;
+	_webSceneArt = false;
 	enableSysTimer(2);
 
 	if (_dialogueField)
