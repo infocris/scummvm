@@ -112,17 +112,31 @@ int LoLEngine::webStackList(int8 *first, uint8 *count) const {
 	return n;
 }
 
-// emplacement réel visé par un clic sur la case index de la barre (-1 : rien à faire). Main vide :
-// premier objet de la pile. Objet en main d'un autre type : échange avec ce premier objet. Même
-// type, ou case vide : l'objet va dans un emplacement libre (il rejoint sa pile).
+// emplacement réel visé par un clic sur la case index de la barre (-1 : rien à faire). Les piles
+// étant rangées selon leur premier emplacement, on touche au dernier exemplaire pour que la pile
+// reste à sa place. Main vide : on prend ce dernier exemplaire. Objet en main d'un autre type :
+// échange avec lui (pile d'un seul objet : l'objet en main prend sa case). Même type : l'objet va
+// dans un emplacement libre après le premier de la pile. Case vide : emplacement libre après le
+// premier de la dernière pile (nouvelle pile au bout). Sinon, n'importe quel emplacement libre.
 int LoLEngine::webStackSlot(int index, Item hand) const {
 	int8 first[48];
 	uint8 count[48];
 	const int n = webStackList(first, count);
 	const int k = _webStackScroll + index;
-	const int target = k < n ? first[k] : -1;
-	if (!hand || (target >= 0 && !webSameStack(hand, _inventory[target])))
-		return target;
+	int last = -1;
+	if (k < n) {
+		for (int i = 47; i >= 0 && last < 0; i--) {
+			if (webSameStack(_inventory[i], _inventory[first[k]]))
+				last = i;
+		}
+	}
+	if (!hand || (last >= 0 && !webSameStack(hand, _inventory[last])))
+		return last;
+	const int after = k < n ? first[k] : (n ? first[n - 1] : -1);
+	for (int i = after + 1; i < 48; i++) {
+		if (!_inventory[i])
+			return i;
+	}
 	for (int i = 0; i < 48; i++) {
 		if (!_inventory[i])
 			return i;
