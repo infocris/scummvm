@@ -1225,6 +1225,11 @@ void LoLEngine::drawScene(int pageNum) {
 	drawVcnBlocks();
 	drawSceneShapes();
 
+	// version web : case vide « Sac » en bas à droite du décor quand on tient un objet
+	_webHandShown = _itemInHand != 0;
+	if (_webHandShown && !_flags.use16ColorMode)
+		_screen->drawShape(_sceneDrawPage1, _gameShapes[4], 265, 99, 0, 0);
+
 	if (!pageNum) {
 		drawSpecialGuiShape(_sceneDrawPage1);
 		_screen->copyRegion(112, 0, 112, 0, 176, 120, _sceneDrawPage1, _sceneDrawPage2, Screen::CR_NO_P_CHECK);

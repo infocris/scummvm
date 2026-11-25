@@ -1102,6 +1102,11 @@ private:
 	bool webSameStack(Item a, Item b) const;
 	void webStackFix();
 	void webStackReveal();
+	// version web : case « Sac » en bas à droite de la vue du décor, affichée quand on tient un objet ;
+	// un clic dessus range l'objet dans le sac (webStoreHand, comme la commande 27)
+	bool webStoreHand();
+	bool webSceneBagClick();
+	bool _webHandShown = false;	// case « Sac » dessinée au dernier dessin du décor
 	int webStackAnchorOf(Item item) const;
 	int webStackCount(int slot) const;
 	int webFreeSlot(int except) const;
