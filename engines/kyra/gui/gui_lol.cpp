@@ -40,11 +40,6 @@ namespace Kyra {
 
 void LoLEngine::gui_drawPlayField() {
 	_screen->loadBitmap("PLAYFLD.CPS", 3, 3, 0);
-	if (!_flags.use16ColorMode) {	// version web : fonds de la flèche droite et de la 9e case de la barre
-		_screen->copyRegionToBuffer(3, 296, 178, 24, 21, _webArrowBg);
-		_screen->copyRegionToBuffer(3, 274, 178, 22, 21, _webCellBg);
-		_webBarReady = true;
-	}
 
 	if (_flagsTable[31] & 0x40) {
 		// copy compass shape
@@ -87,36 +82,9 @@ void LoLEngine::gui_drawScene(int pageNum) {
 
 void LoLEngine::gui_drawInventory() {
 	if (!_currentControlMode || !_needSceneRestore) {
-		for (int i = 0; i < webBarCells(); i++)
+		for (int i = 0; i < 9; i++)
 			gui_drawInventoryItem(i);
-		if (_webBarReady)
-			webDrawBagSlot();
 	}
-}
-
-// version web : flèche droite sur l'ancienne 9e case (x 274), case « Sac » à sa place (x 298) :
-// fond d'une case de la barre et icône d'une bourse en cuir
-void LoLEngine::webDrawBagSlot() {
-	const int p = _screen->_curPage;
-	_screen->copyBlockToPage(p, 274, 178, 24, 21, _webArrowBg);
-	_screen->copyBlockToPage(p, 298, 178, 22, 21, _webCellBg);
-	_screen->drawShape(p, _gameShapes[4], 298, 179, 0, 0);
-	if (_itemIconShapes && _numItemIconShapes > 135)	// bourse en cuir (icône 135)
-		_screen->drawShape(p, _itemIconShapes[135], 299, 180, 0, 0);
-}
-
-// version web : objet en main rangé dans le sac comme un objet ramassé (sa pile en mode piles,
-// sinon le premier emplacement libre), la barre défile jusqu'à lui
-bool LoLEngine::webStoreHand() {
-	const Item h = _itemInHand;
-	if (!h)
-		return false;
-	setHandItem(0);
-	if (!addItemToInventory(h)) {
-		setHandItem(h);
-		return false;
-	}
-	return true;
 }
 
 // version web : deux objets vont dans la même pile s'ils sont du même type et ont la même image
@@ -159,7 +127,7 @@ void LoLEngine::webStackFix() {
 // chargement d'une partie : le défilement gardé peut montrer une zone vide du sac)
 void LoLEngine::webStackReveal() {
 	webStackFix();
-	for (int i = 0; i < webBarCells(); i++) {
+	for (int i = 0; i < 9; i++) {
 		if (_webStackAnchor[(_inventoryCurItem + i) % 48])
 			return;
 	}
@@ -1531,17 +1499,6 @@ int LoLEngine::clickedScenePickupItem(Button *button) {
 }
 
 int LoLEngine::clickedInventorySlot(Button *button) {
-	if (_webBarReady && button->arg == 8) {	// version web : la 9e case porte la flèche droite
-		_screen->drawShape(0, _gameShapes[_flags.isTalkie ? 75 : 73], 274, 180, 0, 0x100, _screen->_paletteOverlay1, 1);
-		_screen->updateScreen();
-		if (++_inventoryCurItem > 47)
-			_inventoryCurItem -= 48;
-		gui_drawInventory();
-		delay(6 * _tickLength);
-		_screen->copyBlockToPage(0, 274, 178, 24, 21, _webArrowBg);
-		_screen->updateScreen();
-		return 1;
-	}
 	int slot = _inventoryCurItem + button->arg;
 	if (slot > 47)
 		slot -= 48;
@@ -1611,13 +1568,8 @@ int LoLEngine::clickedInventoryScroll(Button *button) {
 	if (!_flags.isTalkie)
 		shp -= 2;
 
-	if (_webBarReady && inc > 0) {	// version web : la flèche droite est devenue la case « Sac »
-		webStoreHand();
-		return 1;
-	}
-
 	if (button->flags2 & 0x1000)
-		inc *= webBarCells();
+		inc *= 9;
 
 	_inventoryCurItem += inc;
 

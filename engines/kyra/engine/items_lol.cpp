@@ -263,7 +263,7 @@ bool LoLEngine::addItemToInventory(Item itemIndex) {
 		_webStackAnchor[pos] = false;
 		webStackFix();
 		pos = webStackAnchorOf(itemIndex);
-		while ((_inventoryCurItem > pos) || ((_inventoryCurItem + webBarCells()) <= pos)) {
+		while ((_inventoryCurItem > pos) || ((_inventoryCurItem + 9) <= pos)) {
 			if (++_inventoryCurItem > 47)
 				_inventoryCurItem -= 48;
 		}
@@ -271,7 +271,7 @@ bool LoLEngine::addItemToInventory(Item itemIndex) {
 		return true;
 	}
 
-	while ((_inventoryCurItem > pos) || ((_inventoryCurItem + webBarCells()) <= pos)) {
+	while ((_inventoryCurItem > pos) || ((_inventoryCurItem + 9) <= pos)) {
 		if (++_inventoryCurItem > 47)
 			_inventoryCurItem -= 48;
 		gui_drawInventory();

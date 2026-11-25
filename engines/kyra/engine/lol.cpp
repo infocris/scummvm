@@ -1288,7 +1288,7 @@ Item LoLEngine::webHoverItem() {
 	const Common::Point p = getMousePos();
 	static const uint16 barX[] = { 0x6A, 0x7F, 0x94, 0xA9, 0xBE, 0xD3, 0xE8, 0xFD, 0x112 };
 	if (p.y >= 179 && p.y < 198) {
-		for (int i = 0; i < webBarCells(); i++) {
+		for (int i = 0; i < 9; i++) {
 			if (p.x < barX[i] || p.x >= barX[i] + 20)
 				continue;
 			const int slot = (_inventoryCurItem + i) % 48;
@@ -1679,9 +1679,15 @@ int LoLEngine::webInventoryCommand(int op, int a, int b) {
 	}
 	if (op == 27) {	// ranger l'objet en main dans le sac (sur sa pile en mode piles, sinon emplacement libre),
 		// comme un objet ramassé : addItemToInventory, la barre défile jusqu'à lui
-		if (!_itemInHand)
+		const Item h = _itemInHand;
+		if (!h)
 			return 3;
-		return webStoreHand() ? 0 : 2;
+		setHandItem(0);
+		if (!addItemToInventory(h)) {
+			setHandItem(h);
+			return 2;
+		}
+		return 0;
 	}
 	if (op == 26) {	// barre d'objets du jeu par piles (a = 1) ou par emplacements (a = 0)
 		if ((a != 0) != _webStackInv) {

@@ -1102,14 +1102,6 @@ private:
 	bool webSameStack(Item a, Item b) const;
 	void webStackFix();
 	void webStackReveal();
-	// version web : barre d'objets à 8 cases, flèche droite décalée d'une case, case « Sac » tout à
-	// droite (fonds pris dans PLAYFLD.CPS au dessin du terrain de jeu)
-	uint8 _webArrowBg[24 * 21];
-	uint8 _webCellBg[22 * 21];
-	bool _webBarReady = false;
-	int webBarCells() const { return _webBarReady ? 8 : 9; }
-	void webDrawBagSlot();
-	bool webStoreHand();
 	int webStackAnchorOf(Item item) const;
 	int webStackCount(int slot) const;
 	int webFreeSlot(int except) const;
