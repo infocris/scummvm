@@ -1076,6 +1076,7 @@ void LoLEngine::webPublishState(bool mainLoop) {
 		}
 		u8(n);
 	}
+	u8(_webWallSeq); u16(_webWallBlock); u8(_webWallFace); u8(_webWallHandEmpty ? 1 : 0);	// dernier clic sur un mur
 	end();
 	// image de chaque monstre telle que le jeu la dessine vu du groupe (drawMonster), 4 octets :
 	// numéro d'image (0-15, 255 = aucune) ; 1 = image retournée horizontalement ; giclée de coup

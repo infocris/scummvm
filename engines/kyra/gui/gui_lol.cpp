@@ -1589,6 +1589,10 @@ int LoLEngine::clickedInventoryScroll(Button *button) {
 int LoLEngine::clickedWall(Button *button) {
 	int block = calcNewBlockPosition(_currentBlock, _currentDirection);
 	int dir = _currentDirection ^ 2;
+	_webWallSeq++;	// version web : la page propose les clés du sac devant une serrure ou un coffre
+	_webWallBlock = block;
+	_webWallFace = dir;
+	_webWallHandEmpty = !_itemInHand;
 	uint8 type = _specialWallTypes[_levelBlockProperties[block].walls[dir]];
 
 	int res = 0;
