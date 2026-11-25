@@ -1118,6 +1118,10 @@ void LoLEngine::gui_initButton(int index, int x, int y, int val) {
 	b->flags = _buttonData[index].buttonflags;
 
 	b->arg = (val != -1) ? (uint8)(val & 0xFF) : _buttonData[index].index;
+	// version web : la 9e case de la barre (boutons 50-59, arg 8) porte la flèche droite ; elle prend
+	// les réglages du bouton de cette flèche (61), dont le clic droit (défilement d'une page)
+	if (!_flags.use16ColorMode && index >= 50 && index <= 59 && b->arg == 8)
+		b->flags = _buttonData[61].buttonflags;
 
 	if (index == 15) {
 		// magic sub menu
@@ -1532,7 +1536,8 @@ int LoLEngine::clickedInventorySlot(Button *button) {
 	if (_webBarReady && button->arg == 8) {	// version web : la 9e case porte la flèche droite
 		_screen->drawShape(0, _gameShapes[_flags.isTalkie ? 75 : 73], 274, 180, 0, 0x100, _screen->_paletteOverlay1, 1);
 		_screen->updateScreen();
-		if (++_inventoryCurItem > 47)
+		_inventoryCurItem += (button->flags2 & 0x1000) ? webBarCells() : 1;	// clic droit : une page
+		if (_inventoryCurItem > 47)
 			_inventoryCurItem -= 48;
 		gui_drawInventory();
 		delay(6 * _tickLength);
