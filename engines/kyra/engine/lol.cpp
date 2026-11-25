@@ -1640,7 +1640,7 @@ int LoLEngine::webInventoryCommand(int op, int a, int b) {
 	if (op == 26) {	// barre d'objets du jeu par piles (a = 1) ou par emplacements (a = 0)
 		if ((a != 0) != _webStackInv) {
 			_webStackInv = a != 0;
-			webStackFix();
+			webStackReveal();
 			gui_drawInventory();
 		}
 		return 0;

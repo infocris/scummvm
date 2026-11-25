@@ -323,6 +323,10 @@ Common::Error LoLEngine::loadGameState(int slot) {
 	_credits = 0;
 	giveCredits(t, 0);
 	setHandItem(_itemInHand);
+	if (_webStackInv) {	// version web : barre par piles, positions remises à zéro
+		memset(_webStackAnchor, 0, sizeof(_webStackAnchor));
+		webStackReveal();
+	}
 	loadLevel(_currentLevel);
 	gui_drawPlayField();
 	restartPlayTimerAt(header.totalPlaySecs);

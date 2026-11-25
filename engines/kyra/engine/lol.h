@@ -1096,6 +1096,7 @@ private:
 	bool _webStackAnchor[48] = {};
 	bool webSameStack(Item a, Item b) const;
 	void webStackFix();
+	void webStackReveal();
 	int webStackAnchorOf(Item item) const;
 	int webStackCount(int slot) const;
 	int webFreeSlot(int except) const;

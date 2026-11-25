@@ -123,6 +123,22 @@ void LoLEngine::webStackFix() {
 	}
 }
 
+// si aucune pile n'est dans les 9 cases visibles, la barre défile jusqu'à la première (activation,
+// chargement d'une partie : le défilement gardé peut montrer une zone vide du sac)
+void LoLEngine::webStackReveal() {
+	webStackFix();
+	for (int i = 0; i < 9; i++) {
+		if (_webStackAnchor[(_inventoryCurItem + i) % 48])
+			return;
+	}
+	for (int i = 0; i < 48; i++) {
+		if (_webStackAnchor[i]) {
+			_inventoryCurItem = i;
+			return;
+		}
+	}
+}
+
 int LoLEngine::webStackAnchorOf(Item item) const {
 	for (int i = 0; i < 48; i++) {
 		if (_webStackAnchor[i] && webSameStack(_inventory[i], item))
