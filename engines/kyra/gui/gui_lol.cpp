@@ -94,85 +94,147 @@ bool LoLEngine::webSameStack(Item a, Item b) const {
 		(_itemsInPlay[a].shpCurFrame_flg & 0x1FFF) == (_itemsInPlay[b].shpCurFrame_flg & 0x1FFF);
 }
 
-// piles du sac, dans l'ordre des emplacements : premier emplacement et nombre d'objets de chacune
-int LoLEngine::webStackList(int8 *first, uint8 *count) const {
-	int n = 0;
+// une ancre par pile : la case ancrée qui contient un exemplaire (la plus basse), sinon le premier
+// emplacement de la pile ; les ancres des cases vides ou en double sont retirées. Corrige aussi les
+// changements faits hors de la barre (scripts, page, chargement d'une partie).
+void LoLEngine::webStackFix() {
+	for (int i = 0; i < 48; i++) {
+		if (!_inventory[i])
+			_webStackAnchor[i] = false;
+	}
 	for (int i = 0; i < 48; i++) {
 		if (!_inventory[i])
 			continue;
-		int k = 0;
-		while (k < n && !webSameStack(_inventory[first[k]], _inventory[i]))
-			k++;
-		if (k == n) {
-			first[n] = i;
-			count[n++] = 0;
+		bool seen = false;
+		for (int j = 0; j < i && !seen; j++)
+			seen = webSameStack(_inventory[j], _inventory[i]);
+		if (seen)
+			continue;
+		int a = -1;
+		for (int j = i; j < 48; j++) {
+			if (!webSameStack(_inventory[j], _inventory[i]))
+				continue;
+			if (_webStackAnchor[j] && a < 0)
+				a = j;
+			else
+				_webStackAnchor[j] = false;
 		}
-		count[k]++;
+		_webStackAnchor[a < 0 ? i : a] = true;
 	}
-	return n;
 }
 
-// emplacement réel visé par un clic sur la case index de la barre (-1 : rien à faire). Les piles
-// étant rangées selon leur premier emplacement, on touche au dernier exemplaire pour que la pile
-// reste à sa place. Main vide : on prend ce dernier exemplaire. Objet en main d'un autre type :
-// échange avec lui (pile d'un seul objet : l'objet en main prend sa case). Même type : l'objet va
-// dans un emplacement libre après le premier de la pile. Case vide : emplacement libre après le
-// premier de la dernière pile (nouvelle pile au bout). Sinon, n'importe quel emplacement libre.
-int LoLEngine::webStackSlot(int index, Item hand) const {
-	int8 first[48];
-	uint8 count[48];
-	const int n = webStackList(first, count);
-	const int k = _webStackScroll + index;
-	int last = -1;
-	if (k < n) {
-		for (int i = 47; i >= 0 && last < 0; i--) {
-			if (webSameStack(_inventory[i], _inventory[first[k]]))
-				last = i;
-		}
-	}
-	if (!hand || (last >= 0 && !webSameStack(hand, _inventory[last])))
-		return last;
-	const int after = k < n ? first[k] : (n ? first[n - 1] : -1);
-	for (int i = after + 1; i < 48; i++) {
-		if (!_inventory[i])
-			return i;
-	}
+int LoLEngine::webStackAnchorOf(Item item) const {
 	for (int i = 0; i < 48; i++) {
-		if (!_inventory[i])
+		if (_webStackAnchor[i] && webSameStack(_inventory[i], item))
 			return i;
 	}
 	return -1;
 }
 
-// défile la barre pour montrer la pile de l'objet (ajouté au sac)
-void LoLEngine::webStackShow(Item item) {
-	int8 first[48];
-	uint8 count[48];
-	const int n = webStackList(first, count);
-	for (int k = 0; k < n; k++) {
-		if (!webSameStack(_inventory[first[k]], item))
-			continue;
-		if (k < _webStackScroll || k >= _webStackScroll + 9)
-			_webStackScroll = MAX(0, MIN(k, n - 8));
+int LoLEngine::webStackCount(int slot) const {
+	int n = 0;
+	for (int i = 0; i < 48; i++) {
+		if (webSameStack(_inventory[i], _inventory[slot]))
+			n++;
+	}
+	return n;
+}
+
+int LoLEngine::webFreeSlot(int except) const {
+	for (int i = 0; i < 48; i++) {
+		if (!_inventory[i] && i != except)
+			return i;
+	}
+	return -1;
+}
+
+// pose l'objet sur une case sans pile : un exemplaire caché qui y était rangé part dans un autre
+// emplacement libre ; la pile de l'objet, s'il en a une ailleurs, est déplacée sur cette case
+bool LoLEngine::webStackPut(Item item, int cell) {
+	if (_inventory[cell]) {
+		const int f = webFreeSlot(cell);
+		if (f < 0)
+			return false;
+		_inventory[f] = _inventory[cell];
+		_webStackAnchor[f] = false;
+	}
+	const int q = webStackAnchorOf(item);
+	if (q >= 0)
+		_webStackAnchor[q] = false;
+	_inventory[cell] = item;
+	_webStackAnchor[cell] = true;
+	return true;
+}
+
+// clic sur une case de la barre par piles (emplacement cell du sac)
+// - case avec une pile : main vide, on prend un exemplaire (un caché d'abord : la pile reste là) ;
+//   même type en main, il rejoint la pile ; autre type, échange : il rejoint sa propre pile, sinon
+//   prend la case libérée si c'était le dernier exemplaire, sinon la première case vide qui suit
+// - case vide : l'objet en main y est posé et toute sa pile y est déplacée
+void LoLEngine::webStackClick(int cell) {
+	const Item h = _itemInHand;
+	if (!_inventory[cell] || !_webStackAnchor[cell]) {
+		if (h && webStackPut(h, cell))
+			setHandItem(0);
 		return;
 	}
+	if (h && webSameStack(h, _inventory[cell])) {
+		const int f = webFreeSlot(-1);
+		if (f >= 0) {
+			_inventory[f] = h;
+			_webStackAnchor[f] = false;
+			setHandItem(0);
+		}
+		return;
+	}
+	int s = -1;	// exemplaire caché
+	for (int i = 0; i < 48 && s < 0; i++) {
+		if (i != cell && webSameStack(_inventory[i], _inventory[cell]))
+			s = i;
+	}
+	Item m;
+	if (s >= 0) {
+		m = _inventory[s];
+		_inventory[s] = 0;
+	} else {
+		m = _inventory[cell];
+		_inventory[cell] = 0;
+		_webStackAnchor[cell] = false;
+	}
+	if (h) {
+		if (s < 0) {
+			webStackPut(h, cell);
+		} else if (webStackAnchorOf(h) >= 0) {
+			_inventory[s] = h;
+			_webStackAnchor[s] = false;
+		} else {
+			for (int k = 1; k < 48; k++) {
+				const int c = (cell + k) % 48;
+				if (!_inventory[c] || !_webStackAnchor[c]) {
+					webStackPut(h, c);
+					break;
+				}
+			}
+		}
+	}
+	setHandItem(m);
 }
 
 void LoLEngine::gui_drawInventoryItem(int index) {
 	static const uint16 inventoryXpos[] = { 0x6A, 0x7F, 0x94, 0xA9, 0xBE, 0xD3, 0xE8, 0xFD, 0x112 };
 	int x = inventoryXpos[index];
-	if (_webStackInv) {
-		int8 first[48];
-		uint8 count[48];
-		const int n = webStackList(first, count);
-		_webStackScroll = CLIP(_webStackScroll, 0, n >= 9 ? n - 8 : 0);	// une case vide au bout pour poser un nouveau type
-		const int k = _webStackScroll + index;
-		_screen->drawShape(_screen->_curPage, _gameShapes[4], x, 179, 0, k & 1 ? 0 : 1);
-		if (k < n) {
-			_screen->drawShape(_screen->_curPage, getItemIconShapePtr(_inventory[first[k]]), x + 1, 180, 0, 0);
-			if (count[k] > 1) {
+	if (_webStackInv) {	// version web : barre par piles, seules les cases ancrées montrent leur pile
+		webStackFix();
+		int slot = _inventoryCurItem + index;
+		if (slot > 47)
+			slot -= 48;
+		_screen->drawShape(_screen->_curPage, _gameShapes[4], x, 179, 0, slot & 1 ? 0 : 1);
+		if (_inventory[slot] && _webStackAnchor[slot]) {
+			_screen->drawShape(_screen->_curPage, getItemIconShapePtr(_inventory[slot]), x + 1, 180, 0, 0);
+			const int n = webStackCount(slot);
+			if (n > 1) {
 				Screen::FontId of = _screen->setFont(Screen::FID_6_FNT);
-				_screen->fprintString("%d", x + 20, 190, _flags.use16ColorMode ? 0x33 : 254, 0, 2 | 4, count[k]);
+				_screen->fprintString("%d", x + 20, 190, _flags.use16ColorMode ? 0x33 : 254, 0, 2 | 4, n);
 				_screen->setFont(of);
 			}
 		}
@@ -1424,10 +1486,15 @@ int LoLEngine::clickedInventorySlot(Button *button) {
 	int slot = _inventoryCurItem + button->arg;
 	if (slot > 47)
 		slot -= 48;
-	if (_webStackInv) {	// version web : barre par piles
-		slot = webStackSlot(button->arg, _itemInHand);
-		if (slot < 0)
+	if (_webStackInv) {	// version web : barre par piles (la fusion du Rubis de vérité reste celle du jeu)
+		webStackFix();
+		const Item sItem = _webStackAnchor[slot] ? _inventory[slot] : 0;
+		const uint16 a = _itemInHand ? _itemsInPlay[_itemInHand].itemPropertyIndex : 0, b = sItem ? _itemsInPlay[sItem].itemPropertyIndex : 0;
+		if (!((a == 281 && b == 220) || (a == 220 && b == 281))) {
+			webStackClick(slot);
+			gui_drawInventory();
 			return 1;
+		}
 	}
 
 	uint16 slotItem = _inventory[slot];
@@ -1487,14 +1554,6 @@ int LoLEngine::clickedInventoryScroll(Button *button) {
 
 	if (button->flags2 & 0x1000)
 		inc *= 9;
-
-	if (_webStackInv) {	// version web : barre par piles, sans tour complet (bornée au dessin)
-		_webStackScroll = MAX(0, _webStackScroll + inc);
-		gui_toggleButtonDisplayMode(shp, 1);
-		gui_drawInventory();
-		gui_toggleButtonDisplayMode(shp, 0);
-		return 1;
-	}
 
 	_inventoryCurItem += inc;
 

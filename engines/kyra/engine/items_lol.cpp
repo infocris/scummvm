@@ -258,9 +258,15 @@ bool LoLEngine::addItemToInventory(Item itemIndex) {
 	if (i == 48)
 		return false;
 
-	if (_webStackInv) {	// version web : barre par piles, on montre la pile de l'objet
+	if (_webStackInv) {	// version web : barre par piles, on fait défiler jusqu'à la pile de l'objet
 		_inventory[pos] = itemIndex;
-		webStackShow(itemIndex);
+		_webStackAnchor[pos] = false;
+		webStackFix();
+		pos = webStackAnchorOf(itemIndex);
+		while ((_inventoryCurItem > pos) || ((_inventoryCurItem + 9) <= pos)) {
+			if (++_inventoryCurItem > 47)
+				_inventoryCurItem -= 48;
+		}
 		gui_drawInventory();
 		return true;
 	}

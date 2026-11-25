@@ -1089,14 +1089,18 @@ private:
 	int webCastSpell(int charNum, int spell, int level, int target);	// version web : comme le menu de magie d'un portrait
 	uint8 _webAutoSpell[4] = { 0xFF, 0xFF, 0xFF, 0xFF };	// attaque auto : sort de chaque personnage (0xFF = arme)	// version web : choisir le personnage d'une place du groupe	// version web : sauvegardes listées (n° u16, nom 40 octets)
 	bool _webInMenu = false;	// version web : menu (disquette) ouvert
-	// version web : barre d'objets du jeu « par piles » (une case par type d'objet, avec le nombre) ;
-	// chaque objet garde son emplacement dans _inventory, seul l'affichage et le clic changent
+	// version web : barre d'objets du jeu « par piles ». Les 48 cases et leur défilement restent ceux
+	// du jeu ; chaque pile (objets du même type) est ancrée sur une case (_webStackAnchor) qui montre
+	// l'objet et le nombre ; les autres exemplaires sont rangés dans des emplacements affichés vides
 	bool _webStackInv = false;
-	int _webStackScroll = 0;
+	bool _webStackAnchor[48] = {};
 	bool webSameStack(Item a, Item b) const;
-	int webStackList(int8 *first, uint8 *count) const;
-	int webStackSlot(int index, Item hand) const;
-	void webStackShow(Item item);
+	void webStackFix();
+	int webStackAnchorOf(Item item) const;
+	int webStackCount(int slot) const;
+	int webFreeSlot(int except) const;
+	bool webStackPut(Item item, int cell);
+	void webStackClick(int cell);
 	// version web : dernière réplique affichée (texte mis en forme), qui la dit (place 0-3 dans le
 	// groupe, -1 personnage hors du groupe, -2 texte sans locuteur) et numéro de réplique
 public:
