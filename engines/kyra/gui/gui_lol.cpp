@@ -95,12 +95,14 @@ void LoLEngine::gui_drawInventory() {
 }
 
 // version web : flèche droite sur l'ancienne 9e case (x 274), case « Sac » à sa place (x 298) :
-// fond d'une case de la barre, laissée vide
+// fond d'une case de la barre et icône d'une bourse en cuir
 void LoLEngine::webDrawBagSlot() {
 	const int p = _screen->_curPage;
 	_screen->copyBlockToPage(p, 274, 178, 24, 21, _webArrowBg);
 	_screen->copyBlockToPage(p, 298, 178, 22, 21, _webCellBg);
-	_screen->drawShape(p, _gameShapes[4], 298, 179, 0, 0);	// case vide, sans icône
+	_screen->drawShape(p, _gameShapes[4], 298, 179, 0, 0);
+	if (_itemIconShapes && _numItemIconShapes > 135)	// bourse en cuir (icône 135)
+		_screen->drawShape(p, _itemIconShapes[135], 299, 180, 0, 0);
 }
 
 // version web : objet en main rangé dans le sac comme un objet ramassé (sa pile en mode piles,
