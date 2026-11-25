@@ -1066,6 +1066,16 @@ void LoLEngine::webPublishState(bool mainLoop) {
 	u16(_seqWindowX1); u16(_seqWindowY1); u16(_seqWindowX2); u16(_seqWindowY2);
 	u8(_webInMenu ? 1 : 0); u32(_webLoopCount); u8(_webLoadingLevel ? 1 : 0); u8(_webCasting ? 1 : 0);
 	u8(_webSceneArt ? 1 : 0);
+	{	// objet sous le curseur : type + 1 (0 = aucun), nombre d'exemplaires de sa pile (mode piles)
+		const Item h = webHoverItem();
+		u16(h ? _itemsInPlay[h].itemPropertyIndex + 1 : 0);
+		int n = 0;
+		if (h && _webStackInv) {
+			for (int i = 0; i < 48; i++)
+				n += webSameStack(_inventory[i], h) ? 1 : 0;
+		}
+		u8(n);
+	}
 	end();
 	// image de chaque monstre telle que le jeu la dessine vu du groupe (drawMonster), 4 octets :
 	// numéro d'image (0-15, 255 = aucune) ; 1 = image retournée horizontalement ; giclée de coup
@@ -1267,6 +1277,35 @@ Common::String LoLEngine::webLangString(uint16 id) {
 
 bool LoLEngine::webSlotUsable(int c, int k) const {
 	return _charInvDefs[_charInvIndex[_characters[c].raceClassSex] * 22 + k * 2] != 0xFF;
+}
+
+// objet sous le curseur de la souris : case de la barre d'objets (en mode piles, seules les cases
+// ancrées), ou emplacement d'équipement de la fiche de personnage ouverte (_weaponsDisabled)
+Item LoLEngine::webHoverItem() {
+	if (_webInMenu || !_itemsInPlay || !_charInvDefs)
+		return 0;
+	const Common::Point p = getMousePos();
+	static const uint16 barX[] = { 0x6A, 0x7F, 0x94, 0xA9, 0xBE, 0xD3, 0xE8, 0xFD, 0x112 };
+	if (p.y >= 179 && p.y < 198) {
+		for (int i = 0; i < 9; i++) {
+			if (p.x < barX[i] || p.x >= barX[i] + 20)
+				continue;
+			const int slot = (_inventoryCurItem + i) % 48;
+			return (_webStackInv && !_webStackAnchor[slot]) ? 0 : _inventory[slot];
+		}
+	}
+	if (_weaponsDisabled && _selectedCharacter >= 0 && _selectedCharacter < 4) {
+		for (int k = 0; k < 11; k++) {
+			const uint8 *c = &_charInvDefs[_charInvIndex[_characters[_selectedCharacter].raceClassSex] * 22 + k * 2];
+			if (c[1] == 0xFF)
+				continue;
+			const int x = c[0] + 112, y = c[1];
+			const int x0 = k > 8 ? x - 4 : x, y0 = k > 8 ? y - 4 : y;
+			if (p.x >= x0 && p.x < x0 + 20 && p.y >= y0 && p.y < y0 + 18)
+				return _characters[_selectedCharacter].items[k];
+		}
+	}
+	return 0;
 }
 
 Item LoLEngine::webItemAt(int loc) {

@@ -319,6 +319,7 @@ private:
 	void webRunCommands(bool all = true);	// version web : commandes d'inventaire envoyées par la page
 	int webInventoryCommand(int op, int a, int b);
 	Item webItemAt(int loc);
+	Item webHoverItem();	// version web : objet sous le curseur (barre d'objets, équipement de la fiche)
 	bool webSlotUsable(int c, int k) const;
 	Common::String webLangString(uint16 id);
 	void webSetItemAt(int loc, Item item);
