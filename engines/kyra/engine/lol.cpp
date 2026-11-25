@@ -1677,6 +1677,18 @@ int LoLEngine::webInventoryCommand(int op, int a, int b) {
 		clickedPortraitLeft(&btn);
 		return 0;
 	}
+	if (op == 27) {	// ranger l'objet en main dans le sac (sur sa pile en mode piles, sinon emplacement libre),
+		// comme un objet ramassé : addItemToInventory, la barre défile jusqu'à lui
+		const Item h = _itemInHand;
+		if (!h)
+			return 3;
+		setHandItem(0);
+		if (!addItemToInventory(h)) {
+			setHandItem(h);
+			return 2;
+		}
+		return 0;
+	}
 	if (op == 26) {	// barre d'objets du jeu par piles (a = 1) ou par emplacements (a = 0)
 		if ((a != 0) != _webStackInv) {
 			_webStackInv = a != 0;
