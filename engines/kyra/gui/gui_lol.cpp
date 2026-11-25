@@ -1429,9 +1429,6 @@ int LoLEngine::clickedSceneDropItem(Button *button) {
 	static const uint8 offsX[] = { 0x40, 0xC0, 0x40, 0xC0 };
 	static const uint8 offsY[] = { 0x40, 0x40, 0xC0, 0xC0 };
 
-	if (webSceneBagClick())
-		return 1;
-
 	if ((_updateFlags & 1) || !_itemInHand)
 		return 0;
 
@@ -1590,8 +1587,6 @@ int LoLEngine::clickedInventoryScroll(Button *button) {
 }
 
 int LoLEngine::clickedWall(Button *button) {
-	if (button && webSceneBagClick())
-		return 1;
 	int block = calcNewBlockPosition(_currentBlock, _currentDirection);
 	int dir = _currentDirection ^ 2;
 	_webWallSeq++;	// version web : la page propose les clés du sac devant une serrure ou un coffre
@@ -1688,8 +1683,6 @@ int LoLEngine::clickedSpellTargetScene(Button *button) {
 int LoLEngine::clickedSceneThrowItem(Button *button) {
 	if (_updateFlags & 1)
 		return 0;
-	if (webSceneBagClick())
-		return 1;
 
 	uint16 block = calcNewBlockPosition(_currentBlock, _currentDirection);
 	if ((_wllWallFlags[_levelBlockProperties[block].walls[_currentDirection ^ 2]] & 2) || !_itemInHand)

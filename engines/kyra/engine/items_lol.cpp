@@ -339,17 +339,6 @@ bool LoLEngine::webStoreHand() {
 	return true;
 }
 
-// version web : clic sur la case « Sac » de la vue du décor (x 265-285, y 99-117) avec un objet en main
-bool LoLEngine::webSceneBagClick() {
-	if (_flags.use16ColorMode || !_itemInHand || (_updateFlags & 1))
-		return false;
-	const Common::Point p = getMousePos();
-	if (p.x < 265 || p.x > 285 || p.y < 99 || p.y > 117)
-		return false;
-	webStoreHand();
-	return true;
-}
-
 void LoLEngine::setHandItem(Item itemIndex) {
 	if (itemIndex && _itemProperties[_itemsInPlay[itemIndex].itemPropertyIndex].flags & 0x80) {
 		runItemScript(-1, itemIndex, 0x400, 0, 0);
@@ -367,8 +356,6 @@ void LoLEngine::setHandItem(Item itemIndex) {
 
 	_itemInHand = itemIndex;
 	_screen->setMouseCursor(mouseOffs, mouseOffs, getItemIconShapePtr(itemIndex));
-	if (!_flags.use16ColorMode && !!itemIndex != !!_webHandShown)	// version web : case « Sac » du décor
-		_sceneUpdateRequired = true;
 }
 
 bool LoLEngine::itemEquipped(int charNum, uint16 itemType) {
