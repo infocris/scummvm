@@ -2145,6 +2145,13 @@ int GUI_LoL::processButtonList(Button *buttonList, uint16 inputFlag, int8 mouseW
 	if (!buttonList)
 		return inputFlag & 0x7FFF;
 
+	// version web : clic droit (201 appui, 202 relâchement) qu'aucun bouton du jeu ne traite, objet en
+	// main : il est rangé dans le sac au relâchement (webStoreHand)
+	const uint16 webIn = inputFlag & 0xFF;
+	const bool webRight = (webIn == 201 || webIn == 202) && buttonList == _vm->_activeButtons && !_vm->_webInMenu;
+	if (webRight && webIn == 201)
+		_vm->_webRightUsed = false;
+
 	if (_backUpButtonList != buttonList || _vm->_buttonListChanged) {
 		_specialProcessButton = 0;
 
@@ -2367,8 +2374,11 @@ int GUI_LoL::processButtonList(Button *buttonList, uint16 inputFlag, int8 mouseW
 
 			if (buttonList->buttonCallback) {
 				//_vm->removeInputTop();
-				if ((*buttonList->buttonCallback)(buttonList))
+				if ((*buttonList->buttonCallback)(buttonList)) {
+					if (webRight)
+						_vm->_webRightUsed = true;
 					break;
+				}
 			}
 
 			if (buttonList->flags & 0x20)
@@ -2380,6 +2390,9 @@ int GUI_LoL::processButtonList(Button *buttonList, uint16 inputFlag, int8 mouseW
 
 		buttonList = buttonList->nextButton;
 	}
+
+	if (webRight && webIn == 202 && !_vm->_webRightUsed && _vm->_itemInHand && !_vm->gameFlags().use16ColorMode)
+		_vm->webStoreHand();
 
 	if (!returnValue)
 		returnValue = inputFlag & 0x7FFF;

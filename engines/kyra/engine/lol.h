@@ -1106,7 +1106,8 @@ private:
 	// un clic dessus range l'objet dans le sac (webStoreHand, comme la commande 27)
 	bool webStoreHand();
 	bool webSceneBagClick();
-	bool _webHandShown = false;	// case « Sac » dessinée au dernier dessin du décor
+	bool _webHandShown = false;
+	bool _webRightUsed = false;	// clic droit en cours traité par un bouton du jeu	// case « Sac » dessinée au dernier dessin du décor
 	int webStackAnchorOf(Item item) const;
 	int webStackCount(int slot) const;
 	int webFreeSlot(int except) const;
